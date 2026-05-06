@@ -202,6 +202,32 @@ client.on('debug', (data) => {
 });
 ```
 
+### Adapter Reset (without reconnect)
+
+Reset the adapter using ATZ without disconnecting/reconnecting. Useful for error recovery or protocol changes.
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client(config);
+await client.connect();
+
+try {
+  const rpm = await client.getRPM();
+  console.log(`RPM: ${rpm}`);
+} catch (error) {
+  console.log('Error, resetting adapter...');
+  await client.reset(); // Reset without full reconnect (sends ATZ)
+  const rpm = await client.getRPM(); // Try again
+  console.log(`RPM after reset: ${rpm}`);
+}
+
+// Listen for reset events
+client.on('adapterReset', () => {
+  console.log('Adapter was reset');
+});
+```
+
 ### Diagnostic Request Builder (OpenXC-inspired)
 
 ```typescript
@@ -364,6 +390,9 @@ npx ts-node examples/pid-scanner.ts /dev/ttyUSB0
 
 # Clone compatibility mode (for old v1.5/v2.1 clones):
 npx ts-node examples/clone-compat.ts /dev/ttyUSB0 lenient
+
+# Reset adapter without reconnecting:
+npx ts-node examples/reset-adapter.ts /dev/ttyUSB0
 
 # WiFi examples:
 npx ts-node examples/wifi-usage.ts

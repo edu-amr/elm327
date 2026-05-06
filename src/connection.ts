@@ -501,6 +501,57 @@ export abstract class OBD2Connection extends EventEmitter {
   }
 
   /**
+   * Resets the adapter using ATZ command without disconnecting/reconnecting.
+   * Useful for recovering from communication errors or changing protocols.
+   * This is an independent reset that doesn't recreate the socket/connection.
+   */
+  async reset(): Promise<void> {
+    if (!this.isConnected) {
+      throw new ConnectionError('Not connected to adapter');
+    }
+
+    try {
+      // Send ATZ with retry logic (up to 3 attempts)
+      let atzSuccess = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await this.sendCommand('ATZ');
+          atzSuccess = true;
+          break;
+        } catch (error) {
+          if (attempt === 3) throw error;
+          await this.delay(2000);
+        }
+      }
+
+      this.emit('debug', { message: `ATZ reset ${atzSuccess ? 'succeeded' : 'failed'}` });
+      await this.delay(1500);
+      this.clearBuffer();
+
+      // Re-initialize essential settings after reset
+      // (but don't re-run full initialization)
+      try {
+        await this.sendCommand('ATE0'); // Echo off
+      } catch {
+        // Ignore if fails
+      }
+      await this.delay(100);
+
+      // Re-enable headers if they were enabled
+      try {
+        await this.sendCommand('ATH1');
+      } catch {
+        // Ignore if fails
+      }
+
+      this.emit('reset', { success: atzSuccess });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ProtocolError(`Failed to reset adapter: ${message}`);
+    }
+  }
+
+  /**
    * Starts monitoring all CAN traffic (AT MA mode).
    * In this mode, the adapter forwards all CAN frames without filtering.
    * Use stopMonitor() to exit this mode.

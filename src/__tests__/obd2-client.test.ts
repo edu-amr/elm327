@@ -181,4 +181,65 @@ describe('OBD2Client', () => {
       expect(completeData).toHaveProperty('results');
     });
   });
+
+  describe('reset', () => {
+    beforeEach(async () => {
+      // Setup connected client with mocked connection
+      const mockConnection = {
+        sendCommand: jest.fn().mockResolvedValue('OK'),
+        sendDiagnosticRequest: jest.fn().mockResolvedValue({
+          success: true,
+          mode: 0x01,
+          pid: 0x0C,
+          value: 0x1AF8,
+          timestamp: new Date(),
+        }),
+        initialize: jest.fn().mockResolvedValue({
+          version: 'ELM327 v2.1',
+          device: 'Test Adapter',
+          protocol: 'ISO 15765-4 (CAN 11/500)',
+        }),
+        on: jest.fn(),
+        removeAllListeners: jest.fn(),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        isConnectionOpen: jest.fn().mockReturnValue(true),
+        sendRaw: jest.fn(),
+        getConnectionStatus: jest.fn().mockReturnValue(true),
+        reset: jest.fn().mockResolvedValue(undefined),
+      };
+      (client as any).connection = mockConnection;
+      (client as any).isInitialized = true;
+      (client as any).adapterInfo = {
+        version: 'ELM327 v2.1',
+        device: 'Test Adapter',
+        protocol: 'ISO 15765-4 (CAN 11/500)',
+      };
+    });
+
+    it('should call connection.reset() when reset() is called', async () => {
+      const resetSpy = jest.spyOn((client as any).connection, 'reset');
+
+      await client.reset();
+
+      expect(resetSpy).toHaveBeenCalled();
+    });
+
+    it('should emit adapterReset event after reset', async () => {
+      let resetEventFired = false;
+
+      client.on('adapterReset', () => {
+        resetEventFired = true;
+      });
+
+      await client.reset();
+
+      expect(resetEventFired).toBe(true);
+    });
+
+    it('should throw error if not initialized', async () => {
+      (client as any).isInitialized = false;
+
+      await expect(client.reset()).rejects.toThrow('Adapter not initialized');
+    });
+  });
 });

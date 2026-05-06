@@ -212,6 +212,40 @@ export class OBD2Client extends EventEmitter {
   }
 
   /**
+   * Resets the adapter using ATZ command without disconnecting/reconnecting.
+   * Useful for recovering from communication errors or resetting adapter state.
+   * This is an independent reset that doesn't recreate the socket/connection.
+   *
+   * @example
+   * try {
+   *   await client.query('ENGINE_RPM');
+   * } catch (error) {
+   *   console.log('Error, resetting adapter...');
+   *   await client.reset(); // Reset without full reconnect
+   *   await client.query('ENGINE_RPM'); // Try again
+   * }
+   */
+  async reset(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+    if (!this.connection) {
+      throw new ConnectionError('Not connected to OBD2 adapter');
+    }
+
+    try {
+      await this.connection.reset();
+      this.emit('adapterReset');
+      console.log('[✓] Adapter reset successful');
+    } catch (error) {
+      this.emit('error', error instanceof Error ? error : new Error(String(error)));
+      throw new ConnectionError(
+        `Failed to reset adapter: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
    * Queries a command by its name (e.g., 'ENGINE_RPM').
    */
   async query(commandName: string): Promise<OBD2Response> {
