@@ -606,6 +606,14 @@ export class OBD2Client extends EventEmitter {
   /**
    * Scans all OBD-II PIDs to see which ones respond.
    * Similar to OpenXC's openxc-obd2scanner tool.
+   *
+   * @param mode - The diagnostic mode (default: 0x01 for current data)
+   * @param startPid - Starting PID to scan (default: 0x00)
+   * @param endPid - Ending PID to scan (default: 0x80)
+   * @param onProgress - Optional callback for progress updates
+   *
+   * @emits scanProgress with { pid, response } when each PID is tested
+   * @emits scanComplete when scanning is finished
    */
   async scanPids(
     mode: number = 0x01,
@@ -626,10 +634,23 @@ export class OBD2Client extends EventEmitter {
           results.set(pid, response);
         }
 
+        // Emit progress event (for EventEmitter listeners)
+        this.emit('scanProgress', {
+          pid,
+          response: response.success ? response : null,
+        });
+
+        // Also call the callback if provided
         if (onProgress) {
           onProgress(pid, response.success ? response : null);
         }
       } catch {
+        // Emit progress event even on error
+        this.emit('scanProgress', {
+          pid,
+          response: null,
+        });
+
         if (onProgress) {
           onProgress(pid, null);
         }
@@ -637,6 +658,13 @@ export class OBD2Client extends EventEmitter {
 
       await this.delay(50); // Small delay between requests
     }
+
+    // Emit scan complete event
+    this.emit('scanComplete', {
+      totalScanned: endPid - startPid,
+      found: results.size,
+      results,
+    });
 
     return results;
   }

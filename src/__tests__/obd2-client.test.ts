@@ -117,4 +117,68 @@ describe('OBD2Client', () => {
       expect(throttle).toBe(25);
     });
   });
+
+  describe('scanPids events', () => {
+    beforeEach(async () => {
+      // Setup connected client with mocked connection
+      const mockConnection = {
+        sendCommand: jest.fn().mockResolvedValue('41 0C 1A F8'),
+        sendDiagnosticRequest: jest.fn().mockResolvedValue({
+          success: true,
+          mode: 0x01,
+          pid: 0x0C,
+          value: 0x1AF8,
+          timestamp: new Date(),
+        }),
+        initialize: jest.fn().mockResolvedValue({
+          version: 'ELM327 v2.1',
+          device: 'Test Adapter',
+          protocol: 'ISO 15765-4 (CAN 11/500)',
+        }),
+        on: jest.fn(),
+        removeAllListeners: jest.fn(),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        isConnectionOpen: jest.fn().mockReturnValue(true),
+        sendRaw: jest.fn(),
+        getConnectionStatus: jest.fn().mockReturnValue(true),
+      };
+      (client as any).connection = mockConnection;
+      (client as any).isInitialized = true;
+      (client as any).adapterInfo = {
+        version: 'ELM327 v2.1',
+        device: 'Test Adapter',
+        protocol: 'ISO 15765-4 (CAN 11/500)',
+      };
+    });
+
+    it('should emit scanProgress events during scanPids', async () => {
+      const progressEvents: Array<{ pid: number; response: any }> = [];
+
+      client.on('scanProgress', (data) => {
+        progressEvents.push(data);
+      });
+
+      await client.scanPids(0x01, 0x00, 0x05);
+
+      // Should have emitted progress for each PID (0x00 to 0x04)
+      expect(progressEvents.length).toBeGreaterThan(0);
+      expect(progressEvents[0]).toHaveProperty('pid');
+      expect(progressEvents[0]).toHaveProperty('response');
+    });
+
+    it('should emit scanComplete event when scan finishes', async () => {
+      let completeData: any = null;
+
+      client.on('scanComplete', (data) => {
+        completeData = data;
+      });
+
+      await client.scanPids(0x01, 0x00, 0x03);
+
+      expect(completeData).not.toBeNull();
+      expect(completeData).toHaveProperty('totalScanned');
+      expect(completeData).toHaveProperty('found');
+      expect(completeData).toHaveProperty('results');
+    });
+  });
 });

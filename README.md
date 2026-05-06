@@ -148,6 +148,34 @@ await client.startCANMonitor();
 // To stop: await client.stopCANMonitor();
 ```
 
+### PID Scanning with Progress Events
+
+The `scanPids()` method emits progress events via EventEmitter, allowing you to track scanning progress without using callbacks.
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client(config);
+await client.connect();
+
+// Listen for scan progress via EventEmitter
+client.on('scanProgress', ({ pid, response }) => {
+  if (response) {
+    console.log(`PID 0x${pid.toString(16)}: ${response.value}`);
+  } else {
+    console.log(`PID 0x${pid.toString(16)}: Not supported`);
+  }
+});
+
+// Listen for scan complete
+client.on('scanComplete', ({ totalScanned, found, results }) => {
+  console.log(`Scan complete: ${found} PIDs found out of ${totalScanned}`);
+});
+
+// Start scanning (progress will be emitted via events)
+await client.scanPids(0x01, 0x00, 0x50);
+```
+
 ### Diagnostic Request Builder (OpenXC-inspired)
 
 ```typescript
@@ -304,6 +332,9 @@ npx ts-node examples/flow-control.ts /dev/ttyUSB0
 
 # CAN Bus Monitor (sniff all CAN traffic):
 npx ts-node examples/can-monitor.ts /dev/ttyUSB0
+
+# PID Scanner with progress events:
+npx ts-node examples/pid-scanner.ts /dev/ttyUSB0
 
 # WiFi examples:
 npx ts-node examples/wifi-usage.ts
