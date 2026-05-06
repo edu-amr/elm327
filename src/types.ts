@@ -30,6 +30,20 @@ export interface ConnectionConfig {
   baudRate?: number;
   timeout?: number;
   lineEnding?: string;
+  /**
+   * Flow Control configuration for ISO-TP multiframe messages (Mode 09, VIN, etc.)
+   * Only used with CAN-based protocols (6-B).
+   */
+  flowControl?: {
+    /** Flow Control header (AT FC SH) - typically the ECU response ID + 8 (e.g., 0x7E0 -> 0x7E8) */
+    header?: string;
+    /** Flow Control data bytes (AT FC SD) - up to 5 bytes */
+    data?: string;
+    /** Flow Control mode (AT FC SM) - 0: normal, 1: continuous, etc. */
+    mode?: number;
+    /** Enable/disable flow control (AT CFC) - true = on, false = off */
+    enabled?: boolean;
+  };
 }
 
 /**

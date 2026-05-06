@@ -94,6 +94,32 @@ const response = await client.queryCommand(customCommand);
 console.log(`Custom param: ${response.value} ${response.unit}`);
 ```
 
+### Flow Control Configuration (ISO-TP Multiframe)
+
+For multiframe ISO-TP messages (like VIN via Mode 09), the ELM327 needs Flow Control configuration. Without it, the vehicle may not send consecutive frames.
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const config = {
+  type: 'serial' as const,
+  port: '/dev/ttyUSB0',
+  flowControl: {
+    enabled: true,       // Enable Flow Control (AT CFC1)
+    header: '07E0',      // Request ID (standard OBD-II)
+    data: '',            // No additional data bytes
+    mode: 0,             // Normal mode
+  },
+};
+
+const client = new OBD2Client(config);
+await client.connect();
+
+// Now VIN retrieval (multiframe) should work properly
+const vin = await client.getVIN();
+console.log(`VIN: ${vin}`);
+```
+
 ### Diagnostic Request Builder (OpenXC-inspired)
 
 ```typescript
@@ -244,6 +270,9 @@ npx ts-node examples/basic-usage.ts /dev/ttyUSB0
 
 # Real-time monitoring (port required):
 npx ts-node examples/monitoring.ts /dev/ttyUSB0
+
+# Flow Control example (for VIN/multiframe):
+npx ts-node examples/flow-control.ts /dev/ttyUSB0
 
 # WiFi examples:
 npx ts-node examples/wifi-usage.ts

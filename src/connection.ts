@@ -369,6 +369,51 @@ export abstract class OBD2Connection extends EventEmitter {
       }
       await this.delay(100);
 
+      // Configure Flow Control for ISO-TP multiframe (Mode 09, VIN, etc.)
+      if (this.config.flowControl) {
+        const fc = this.config.flowControl;
+
+        // Enable/disable flow control (AT CFC0 = off, AT CFC1 = on)
+        if (fc.enabled !== undefined) {
+          try {
+            await this.sendCommand(fc.enabled ? 'ATCFC1' : 'ATCFC0');
+          } catch (e) {
+            console.warn('ATCFC failed:', e instanceof Error ? e.message : e);
+          }
+          await this.delay(100);
+        }
+
+        // Set Flow Control Header (AT FC SH)
+        if (fc.header) {
+          try {
+            await this.sendCommand(`AT FC SH ${fc.header}`);
+          } catch (e) {
+            console.warn('AT FC SH failed:', e instanceof Error ? e.message : e);
+          }
+          await this.delay(100);
+        }
+
+        // Set Flow Control Data (AT FC SD)
+        if (fc.data) {
+          try {
+            await this.sendCommand(`AT FC SD ${fc.data}`);
+          } catch (e) {
+            console.warn('AT FC SD failed:', e instanceof Error ? e.message : e);
+          }
+          await this.delay(100);
+        }
+
+        // Set Flow Control Mode (AT FC SM)
+        if (fc.mode !== undefined) {
+          try {
+            await this.sendCommand(`AT FC SM ${fc.mode.toString(16).toUpperCase()}`);
+          } catch (e) {
+            console.warn('AT FC SM failed:', e instanceof Error ? e.message : e);
+          }
+          await this.delay(100);
+        }
+      }
+
       const protocol = await this.sendCommand('ATDP');
 
       this.isInitialized = true;
