@@ -1,59 +1,105 @@
 # elm327
 
-A comprehensive Node.js library for communicating with OBD2 (On-Board Diagnostics) systems in vehicles. Supports serial (USB), Bluetooth (BLE), and WiFi (TCP) connections to ELM327 adapters.
+A comprehensive Node.js/TypeScript library for communicating with OBD2 (On-Board Diagnostics) systems in vehicles. Supports serial (USB), Bluetooth, and WiFi connections to ELM327 adapters.
 
 ## Features
 
 - **Universal OBD2 Support**: Compatible with all OBD2-compliant vehicles (1996+)
-- **Multiple Connection Types**: Serial (USB/RS232), Bluetooth (Web BLE), and WiFi (TCP)
+- **Multiple Connection Types**: Serial (USB/RS232), Bluetooth, and WiFi (TCP)
 - **Comprehensive Parameter Set**: 18+ predefined OBD2 parameters with proper decoders
 - **Real-time Monitoring**: Event-driven data streaming capabilities
-- **Adapter Management**: Automatic adapter initialization and configuration
+- **Diagnostic Requests**: OpenXC-inspired diagnostic request builder and response parser
+- **Multi-frame Support**: ISO-TP multi-frame message reassembly (for VIN, etc.)
+- **Auto-reconnect**: Configurable automatic reconnection on connection loss
+- **Adapter Management**: Automatic adapter initialization and configuration (ATS1, ATH1, etc.)
 - **Cross-platform**: Works on Windows, macOS, and Linux
 - **TypeScript Support**: Full TypeScript definitions included
-- **Well Tested**: Comprehensive test suite with coverage thresholds
+- **Well Tested**: Comprehensive test suite (18 tests passing)
 
 ## Installation
 
 ```bash
 npm install elm327
+# or
+yarn add elm327
 ```
 
 ## Quick Start
 
-### Serial Connection (USB)
+### TypeScript Example (Recommended)
+
+```typescript
+import { OBD2Client, ConnectionConfig } from 'elm327';
+
+const config: ConnectionConfig = {
+  type: 'serial',
+  port: '/dev/ttyUSB0', // or 'COM3' on Windows
+  baudRate: 38400,
+  timeout: 5000,
+};
+
+const client = new OBD2Client(config);
+
+client.on('connected', () => console.log('Connected!'));
+client.on('ready', (info) => {
+  console.log(`Adapter: ${info.version} | Protocol: ${info.protocol}`);
+});
+
+await client.connect();
+
+// Read some basic parameters
+const rpm = await client.getRPM();
+const speed = await client.getSpeed();
+const temp = await client.getCoolantTemperature();
+
+console.log(`RPM: ${rpm}`);
+console.log(`Speed: ${speed} km/h`);
+console.log(`Coolant: ${temp}°C`);
+
+await client.disconnect();
+```
+
+### JavaScript Example
 
 ```javascript
-const { OBD2Client, listSerialPorts } = require('elm327');
+const { OBD2Client } = require('elm327');
 
 async function main() {
-  // List available serial ports
-  const ports = await listSerialPorts();
-  console.log('Available ports:', ports);
-
-  // Create client
   const client = new OBD2Client({
     type: 'serial',
     port: '/dev/ttyUSB0', // or 'COM3' on Windows
     baudRate: 38400,
   });
 
-  // Connect and initialize
   await client.connect();
 
-  // Read some basic parameters
   const rpm = await client.getRPM();
   const speed = await client.getSpeed();
-  const temp = await client.getCoolantTemperature();
 
   console.log(`RPM: ${rpm}`);
   console.log(`Speed: ${speed} km/h`);
-  console.log(`Coolant: ${temp}°C`);
 
   await client.disconnect();
 }
 
 main().catch(console.error);
+```
+
+### WiFi Connection
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client({
+  type: 'wifi',
+  host: '192.168.0.10', // Default ELM327 WiFi adapter IP
+  port: 35000 // Default ELM327 WiFi port
+});
+
+await client.connect();
+const rpm = await client.getRPM();
+console.log(`RPM: ${rpm}`);
+await client.disconnect();
 ```
 
 ### TypeScript Example
@@ -171,6 +217,8 @@ client.on('rawData', (data) => {}); // Raw data from adapter
 
 | Command               | Description                        | Unit    |
 | --------------------- | ---------------------------------- | ------- |
+| `PIDS_00`            | Supported PIDs (00-20)              | PID     |
+| `DTC_STATUS`          | DTC status since last clearing       | STATUS  |
 | `ENGINE_LOAD`         | Calculated engine load             | %       |
 | `COOLANT_TEMP`        | Engine coolant temperature         | °C      |
 | `FUEL_PRESSURE`       | Fuel pressure                      | kPa     |
@@ -245,8 +293,8 @@ const commands = getAllCommands();
 
 ### Real-time Monitoring
 
-```javascript
-const { OBD2Client } = require('elm327');
+```typescript
+import { OBD2Client } from 'elm327';
 
 const client = new OBD2Client({
   type: 'serial',
@@ -258,14 +306,20 @@ await client.connect();
 // Monitor key parameters every 2 seconds
 setInterval(async () => {
   try {
-    const data = await client.queryMultiple([
+    const results = await client.queryMultiple([
       'ENGINE_RPM',
       'VEHICLE_SPEED',
       'COOLANT_TEMP',
       'ENGINE_LOAD',
     ]);
 
-    console.log('Vehicle Data:', data);
+    for (const r of results) {
+      if ('error' in r) {
+        console.log(`${r.command}: ${r.error}`);
+      } else {
+        console.log(`${r.command}: ${r.value} ${r.unit || ''}`);
+      }
+    }
   } catch (error) {
     console.error('Monitoring error:', error.message);
   }
@@ -274,8 +328,8 @@ setInterval(async () => {
 
 ### Error Handling
 
-```javascript
-const { OBD2Client, ConnectionError, TimeoutError, ProtocolError } = require('elm327');
+```typescript
+import { OBD2Client, ConnectionError, TimeoutError, ProtocolError } from 'elm327';
 
 const client = new OBD2Client(config);
 
@@ -294,6 +348,22 @@ try {
 } catch (error) {
   console.error('Failed to connect:', error.message);
 }
+```
+
+### Auto-reconnect
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client(config);
+
+// Enable auto-reconnect
+client.setAutoReconnect(true);
+
+client.on('reconnecting', () => console.log('Reconnecting...'));
+client.on('reconnected', () => console.log('Reconnected!'));
+
+await client.connect();
 ```
 
 ### Custom Command Decoder
@@ -320,37 +390,60 @@ const response = await client.queryCommand(customCommand);
 console.log(`Custom param: ${response.value} ${response.unit}`);
 ```
 
+### Diagnostic Request Builder (OpenXC-inspired)
+
+```typescript
+import { OBD2Client, DiagnosticRequestBuilder, DiagnosticMode } from 'elm327';
+
+const client = new OBD2Client(config);
+await client.connect();
+
+// Build a custom diagnostic request
+const request = DiagnosticRequestBuilder.mode1Request(0x0C, 'ENGINE_RPM');
+console.log(`Command: ${request.build()}`); // Output: 010C
+
+// Get VIN using DiagnosticRequestBuilder
+const vinRequest = DiagnosticRequestBuilder.vinRequest();
+const response = await client.sendDiagnosticRequest(vinRequest.getConfig());
+```
+
 ## Troubleshooting
 
 ### Common Issues
 
 1. **Permission Denied (Linux/macOS)**
 
-   ```bash
-   sudo chmod 666 /dev/ttyUSB0
-   # or add user to dialout group
-   sudo usermod -a -G dialout $USER
-   ```
+    ```bash
+    sudo chmod 666 /dev/ttyUSB0
+    # or add user to dialout group
+    sudo usermod -a -G dialout $USER
+    ```
 
 2. **Port Not Found**
-   - Check if adapter is properly connected
-   - Use `listSerialPorts()` to find available ports
-   - Try different USB ports
+    - Check if adapter is properly connected
+    - Use `listSerialPorts()` to find available ports
+    - Try different USB ports
 
 3. **Adapter Not Responding**
-   - Verify adapter compatibility (ELM327 recommended)
-   - Check baud rate settings
-   - Ensure vehicle is running or ignition is on
+    - Verify adapter compatibility (ELM327 recommended)
+    - Check baud rate settings
+    - Ensure vehicle is running or ignition is on
+    - Make sure AT commands are supported (try ATS1 instead of ATS0)
 
 4. **Bluetooth Connection Issues**
-   - Pair adapter with system first
-   - Check if adapter is already connected to another device
-   - Verify Bluetooth permissions
+    - Pair adapter with system first
+    - Check if adapter is already connected to another device
+    - Verify Bluetooth permissions
 
 5. **WiFi Connection Issues**
-   - Ensure you are connected to the adapter's WiFi network
-   - Verify IP address (default: 192.168.0.10) and port (default: 35000)
-   - Check firewall settings
+    - Ensure you are connected to the adapter's WiFi network
+    - Verify IP address (default: 192.168.0.10) and port (default: 35000)
+    - Check firewall settings
+
+6. **Multi-frame Responses (VIN not working)**
+    - Ensure ATH1 is enabled (included in initialization)
+    - Check if your adapter supports ISO-TP multi-frame messages
+    - Use `sendDiagnosticRequest()` with mode 9 PID 02 for VIN
 
 ### Debug Mode
 
@@ -375,7 +468,7 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 ### Development Setup
 
 ```bash
-git clone https://github.com/eduardomaciel/elm327.git
+git clone https://github.com/edu-amr/elm327.git
 cd elm327
 npm install
 npm run build
@@ -388,13 +481,32 @@ npm test
 npm run build
 
 # Auto-detect serial port:
-npm run example:basic
+npx ts-node examples/basic-usage.ts
 
 # Or specify a port:
-npm run example:basic -- /dev/ttyUSB0
+npx ts-node examples/basic-usage.ts /dev/ttyUSB0
 
 # Real-time monitoring (port required):
-npm run example:monitoring -- /dev/ttyUSB0
+npx ts-node examples/monitoring.ts /dev/ttyUSB0
+
+# WiFi examples:
+npx ts-node examples/wifi-usage.ts
+npx ts-node examples/wifi-monitoring.ts
+```
+
+## Publishing to NPM
+
+```bash
+# Build the project
+npm run build
+
+# Publish to NPM registry
+npm publish
+
+# Or use the predefined scripts
+npm run publish:npm       # Publish to npmjs.com
+npm run publish:github   # Publish to GitHub Packages
+npm run publish:all      # Publish to both
 ```
 
 ## License
@@ -405,6 +517,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 - Based on the ELM327 command set
 - Inspired by the OBD2 protocol specifications
+- Inspired by OpenXC's diagnostic tools
 - Thanks to the automotive diagnostics community
 
 ## Related Projects
@@ -412,3 +525,4 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 - [python-OBD](https://github.com/brendan-w/python-OBD) — Python OBD2 library
 - [node-obd](https://github.com/EricSmekens/node-obd) — Another Node.js OBD library
 - [elm327-emulator](https://github.com/Ircama/ELM327-emulator) — ELM327 emulator for testing
+- [OpenXC](https://github.com/openxc/openxc) — Open vehicle data platform
