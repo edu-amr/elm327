@@ -23,15 +23,23 @@ export interface PendingRequest {
 export class ResponseMatcher extends EventEmitter {
   private pendingRequests: Map<string, PendingRequest> = new Map();
   private requestCounter = 0;
+  private destroyed = false;
 
   /**
    * Adds a new pending request and returns its ID.
+   * If the matcher is destroyed (connection lost), rejects immediately.
    */
   addRequest(
     command: string,
     timeout: number,
     matchFn?: (response: string) => boolean,
   ): { id: string; promise: Promise<string> } {
+    // If destroyed, reject immediately without creating timer
+    if (this.destroyed) {
+      const promise = Promise.reject(new ProtocolError('Connection lost. Matcher is destroyed.'));
+      return { id: 'destroyed', promise };
+    }
+
     const id = `req_${Date.now()}_${this.requestCounter++}`;
 
     let resolveFn: (value: string) => void;
@@ -81,7 +89,7 @@ export class ResponseMatcher extends EventEmitter {
     }
 
     // Try to match against all pending requests
-    for (const [id, request] of this.pendingRequests.entries()) {
+    for (const [id, request] of Array.from(this.pendingRequests.entries())) {
       // If a custom matcher is provided, use it
       if (request.matchFn && request.matchFn(data)) {
         this.resolveRequest(id, data);
@@ -146,12 +154,31 @@ export class ResponseMatcher extends EventEmitter {
 
   /**
    * Rejects all pending requests with the given error.
+   * Sets destroyed state to prevent new requests.
    */
   rejectAll(error: Error): void {
-    for (const [, request] of this.pendingRequests.entries()) {
+    this.destroyed = true;
+    for (const [, request] of Array.from(this.pendingRequests.entries())) {
       clearTimeout(request.timer);
       request.reject(error);
     }
+    this.pendingRequests.clear();
+  }
+
+  /**
+   * Marks the matcher as destroyed (connection lost).
+   * Future addRequest calls will be rejected immediately.
+   */
+  destroy(): void {
+    this.destroyed = true;
+    this.rejectAll(new ProtocolError('Connection lost.'));
+  }
+
+  /**
+   * Resets the destroyed state (for reconnection).
+   */
+  reset(): void {
+    this.destroyed = false;
     this.pendingRequests.clear();
   }
 

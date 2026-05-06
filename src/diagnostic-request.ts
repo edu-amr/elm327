@@ -28,27 +28,24 @@ export class DiagnosticRequestBuilder {
   }
 
   /**
-   * Returns sequence of commands for specific CAN ID.
-   * For ELM327, to send to a specific ID, we need AT SH first.
+   * Returns atomic command for specific CAN ID.
+   * For ELM327, we combine AT SH + command as a single string
+   * to prevent header from being "forgotten" between commands.
+   * Uses semicolon to chain commands in ELM327.
    */
   getCommandsForSpecificId(): string[] {
-    const commands: string[] = [];
     const modeHex = this.toHex(this.config.mode);
     const pidHex = this.config.pid !== undefined ? this.toHex(this.config.pid) : '';
+    const command = modeHex + pidHex;
 
-    // If using specific ID (not 7DF broadcast), set header first
+    // If using specific ID (not 7DF broadcast), combine AT SH + command
     if (this.config.id && this.config.id !== 0x7df) {
-      commands.push(`AT SH ${this.toHex(this.config.id)}`);
+      // Send as atomic command: AT SH + command in one line
+      // ELM327 will use the header for the next command only
+      return [`AT SH ${this.toHex(this.config.id)} ${command}`];
     }
 
-    commands.push(modeHex + pidHex);
-
-    // Restore default header if needed
-    if (this.config.id && this.config.id !== 0x7df) {
-      commands.push('AT SH 7DF'); // Restore broadcast
-    }
-
-    return commands.filter((c) => c.length > 0);
+    return [command];
   }
 
   /**
@@ -244,18 +241,36 @@ export class DiagnosticResponseParser {
   }
 
   /**
-   * Parses a multi-line response (for multi-frame messages)
+   * Parses a multi-line response (for multi-frame messages like VIN)
+   * Removes PCI (Protocol Control Information) bytes from each frame:
+   * - First Frame: byte 0 = PCI (0x0N where N = length)
+   * - Consecutive Frames: byte 0 = PCI (0x2N where N = sequence number)
    */
   static parseMultiFrame(
     rawResponses: string[],
     request: DiagnosticRequestConfig,
   ): DiagnosticResponse {
-    // Combine all frames
-    const combined = rawResponses
-      .map((r) => r.replace(/[\r\n>]/g, '').trim())
-      .filter((r) => r.length > 0)
-      .join(' ');
+    // Process each frame, removing PCI byte
+    const payloadBytes: string[] = [];
 
+    for (let i = 0; i < rawResponses.length; i++) {
+      const frame = rawResponses[i]!.replace(/[\r\n>]/g, '').trim();
+      if (frame.length === 0) continue;
+
+      const bytes = frame.split(/\s+/).filter((b) => b.length > 0);
+
+      if (i === 0) {
+        // First Frame: Skip PCI byte (first byte indicates length)
+        // Format: [PCI] [Mode+0x40] [PID] [Data...]
+        payloadBytes.push(...bytes.slice(1));
+      } else {
+        // Consecutive Frame: Skip PCI byte (0x2N where N = sequence)
+        // Format: [PCI] [Data...]
+        payloadBytes.push(...bytes.slice(1));
+      }
+    }
+
+    const combined = payloadBytes.join('');
     return this.parse(combined, request);
   }
 }

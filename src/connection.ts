@@ -280,20 +280,28 @@ export abstract class OBD2Connection extends EventEmitter {
   }
 
   /**
-   * Removes noise from raw adapter responses.
-   * Normalizes line endings and removes ELM327 specific messages.
+   * Cleans a response by removing common ELM327 artifacts.
+   * Uses fast string operations instead of regex for better performance.
+   * Removes \r, \n, >, and trims whitespace.
    */
   protected cleanResponse(response: string): string {
-    return response
-      .replace(/SEARCHING\.\.\./gi, '')
-      .replace(/BUS INIT\.\.\./gi, '')
-      .replace(/[\r\n]+/g, ' ') // Normalize all line endings
-      .replace(/>/g, '') // Remove ELM327 prompt
-      .trim()
-      .toUpperCase()
-      .split(' ')
-      .filter((part) => part.length > 0)
-      .join(' ');
+    // Fast removal of trailing '>' without regex
+    let cleaned = response;
+    const lastGT = cleaned.lastIndexOf('>');
+    if (lastGT !== -1) {
+      cleaned = cleaned.substring(0, lastGT);
+    }
+
+    // Fast removal of \r and \n using indexOf loops (no regex allocation)
+    let result = '';
+    for (let i = 0; i < cleaned.length; i++) {
+      const ch = cleaned[i]!;
+      if (ch !== '\r' && ch !== '\n') {
+        result += ch;
+      }
+    }
+
+    return result.trim();
   }
 
   /**

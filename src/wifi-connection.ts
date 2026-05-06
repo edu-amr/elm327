@@ -1,4 +1,4 @@
-import net from 'node:net';
+import * as net from 'node:net';
 import { OBD2Connection } from './connection';
 import { ConnectionError } from './errors';
 import { ConnectionConfig } from './types';

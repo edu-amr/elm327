@@ -29,6 +29,9 @@ export class OBD2Client extends EventEmitter {
   private pollers: Map<string, { interval: NodeJS.Timeout; intervalMs: number }> = new Map();
   private globalPollInterval?: NodeJS.Timeout;
   private pollIntervalMs = 1000; // Default 1 second
+  private heartbeatTimer?: NodeJS.Timeout;
+  private lastCommandTime = Date.now();
+  private readonly heartbeatIntervalMs = 20000; // 20 seconds
 
   constructor(private config: ConnectionConfig) {
     super();
@@ -39,6 +42,40 @@ export class OBD2Client extends EventEmitter {
    */
   setAutoReconnect(enabled: boolean): void {
     this.autoReconnect = enabled;
+  }
+
+  /**
+   * Starts the heartbeat timer to keep the connection alive.
+   * Sends a lightweight AT command every 20s if no other command is sent.
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.lastCommandTime = Date.now();
+
+    this.heartbeatTimer = setInterval(() => {
+      const idleTime = Date.now() - this.lastCommandTime;
+      // If idle for more than heartbeat interval, send keep-alive
+      if (idleTime > this.heartbeatIntervalMs && this.isInitialized && this.connection) {
+        this.connection
+          .sendCommand('AT', 1000)
+          .then(() => {
+            this.lastCommandTime = Date.now();
+          })
+          .catch(() => {
+            // Ignore errors - heartbeat is best-effort
+          });
+      }
+    }, this.heartbeatIntervalMs);
+  }
+
+  /**
+   * Stops the heartbeat timer.
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = undefined;
+    }
   }
 
   /**
@@ -111,6 +148,9 @@ export class OBD2Client extends EventEmitter {
 
       this.adapterInfo = await this.connection.initialize();
       this.isInitialized = true;
+
+      // Start heartbeat to prevent WiFi/Bluetooth disconnection
+      this.startHeartbeat();
 
       this.emit('ready', this.adapterInfo);
     } catch (error) {
@@ -201,7 +241,7 @@ export class OBD2Client extends EventEmitter {
     }
 
     // Also clear individual pollers
-    for (const [name, poller] of this.pollers) {
+    for (const [name, poller] of Array.from(this.pollers.entries())) {
       if (poller.interval) {
         clearInterval(poller.interval);
         poller.interval = undefined as any;
@@ -214,6 +254,7 @@ export class OBD2Client extends EventEmitter {
    */
   async disconnect(): Promise<void> {
     this.stopPolling(); // Stop polling on disconnect
+    this.stopHeartbeat(); // Stop heartbeat
     this._manualDisconnect = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -276,6 +317,7 @@ export class OBD2Client extends EventEmitter {
       throw new Error(`Unknown command: ${commandName}`);
     }
 
+    this.lastCommandTime = Date.now(); // Update for heartbeat
     return this.queryCommand(command);
   }
 
@@ -295,6 +337,7 @@ export class OBD2Client extends EventEmitter {
       throw new Error(`Unknown PID: ${pid}`);
     }
 
+    this.lastCommandTime = Date.now(); // Update for heartbeat
     return this.queryCommand(command);
   }
 
@@ -310,6 +353,7 @@ export class OBD2Client extends EventEmitter {
     }
 
     try {
+      this.lastCommandTime = Date.now(); // Update for heartbeat
       const response = await this.connection.sendCommand(command.pid);
       const value = command.decoder(response);
 
@@ -506,6 +550,7 @@ export class OBD2Client extends EventEmitter {
     }
 
     try {
+      this.lastCommandTime = Date.now(); // Update for heartbeat
       const response = await this.connection.sendDiagnosticRequest(config);
       if (!response) {
         throw new ProtocolError('No response received from diagnostic request');
