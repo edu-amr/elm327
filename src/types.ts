@@ -44,6 +44,14 @@ export interface ConnectionConfig {
     /** Enable/disable flow control (AT CFC) - true = on, false = off */
     enabled?: boolean;
   };
+  /**
+   * Clone compatibility mode for older ELM327 v1.5/v2.1 clones.
+   * - 'auto': Detect and adjust automatically (default)
+   * - 'strict': Full feature set, may fail on old clones
+   * - 'lenient': Skip unsupported commands, longer delays
+   * - 'minimal': Only essential commands (ATZ, ATE0, ATSP0)
+   */
+  cloneCompatibility?: 'auto' | 'strict' | 'lenient' | 'minimal';
 }
 
 /**

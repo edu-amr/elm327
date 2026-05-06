@@ -176,6 +176,32 @@ client.on('scanComplete', ({ totalScanned, found, results }) => {
 await client.scanPids(0x01, 0x00, 0x50);
 ```
 
+### Clone Compatibility Mode
+
+For older ELM327 v1.5/v2.1 clones that may not support all commands, use the `cloneCompatibility` option.
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client({
+  type: 'serial',
+  port: '/dev/ttyUSB0',
+  // 'auto': Detect and adjust automatically (default)
+  // 'strict': Full feature set, may fail on old clones
+  // 'lenient': Skip unsupported commands, longer delays
+  // 'minimal': Only essential commands (ATZ, ATE0, ATSP0)
+  cloneCompatibility: 'lenient',
+  timeout: 10000, // Longer timeout for clones
+});
+
+await client.connect(); // Will adapt initialization for clone
+
+// Listen for debug info about clone detection
+client.on('debug', (data) => {
+  console.log('Debug:', data);
+});
+```
+
 ### Diagnostic Request Builder (OpenXC-inspired)
 
 ```typescript
@@ -335,6 +361,9 @@ npx ts-node examples/can-monitor.ts /dev/ttyUSB0
 
 # PID Scanner with progress events:
 npx ts-node examples/pid-scanner.ts /dev/ttyUSB0
+
+# Clone compatibility mode (for old v1.5/v2.1 clones):
+npx ts-node examples/clone-compat.ts /dev/ttyUSB0 lenient
 
 # WiFi examples:
 npx ts-node examples/wifi-usage.ts

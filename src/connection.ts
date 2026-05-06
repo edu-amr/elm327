@@ -302,6 +302,28 @@ export abstract class OBD2Connection extends EventEmitter {
       throw new ConnectionError('Not connected to adapter');
     }
 
+    const compatMode = this.config.cloneCompatibility || 'auto';
+    const isMinimal = compatMode === 'minimal';
+    const isLenient = compatMode === 'lenient' || compatMode === 'minimal';
+    const isStrict = compatMode === 'strict';
+
+    // Auto-detect: try to identify clone version
+    let detectedVersion = 'Unknown';
+    if (compatMode === 'auto') {
+      try {
+        const versionResponse = await this.sendCommand('ATI');
+        detectedVersion = this.cleanResponse(versionResponse);
+        // Check for old clone patterns
+        if (detectedVersion.includes('v1.5') || detectedVersion.includes('V1.5')) {
+          this.emit('debug', { message: 'Detected ELM327 v1.5 clone - using lenient mode' });
+          // Switch to lenient mode for old clones
+          (this.config as any).cloneCompatibility = 'lenient';
+        }
+      } catch {
+        // Ignore version detection errors
+      }
+    }
+
     try {
       // Retry ATZ up to 3 times (some adapters need time to reset)
       let atzSuccess = false;
@@ -318,53 +340,72 @@ export abstract class OBD2Connection extends EventEmitter {
 
       // Emit debug info (can be captured by the 'debug' event)
       this.emit('debug', { atzSuccess, message: `ATZ ${atzSuccess ? 'succeeded' : 'failed'}` });
-      await this.delay(1500);
+      await this.delay(isLenient ? 2000 : 1500); // Longer delay for old clones
       this.clearBuffer();
 
       // Initialize with individual error handling for each command
+      // ATE0 - Echo off (essential for most adapters)
       try {
         await this.sendCommand('ATE0');
       } catch (e) {
+        if (isStrict) throw e;
         console.warn('ATE0 failed:', e instanceof Error ? e.message : e);
       }
-      await this.delay(100);
+      await this.delay(isLenient ? 200 : 100);
 
-      try {
-        await this.sendCommand('ATL0');
-      } catch (e) {
-        console.warn('ATL0 failed:', e instanceof Error ? e.message : e);
-      }
-      await this.delay(100);
+      // Skip non-essential commands in minimal mode
+      if (!isMinimal) {
+        // ATL0 - Linefeeds off (may fail on old clones)
+        try {
+          await this.sendCommand('ATL0');
+        } catch (e) {
+          if (isStrict) throw e;
+          console.warn('ATL0 failed (some clones do not support it):', e instanceof Error ? e.message : e);
+        }
+        await this.delay(isLenient ? 200 : 100);
 
-      try {
-        await this.sendCommand('ATS1');
-      } catch (e) {
-        console.warn('ATS1 failed:', e instanceof Error ? e.message : e);
-      }
-      await this.delay(100);
+        // ATS1 - Spaces on (may fail on old clones)
+        try {
+          await this.sendCommand('ATS1');
+        } catch (e) {
+          if (isStrict) throw e;
+          console.warn('ATS1 failed (some clones do not support it):', e instanceof Error ? e.message : e);
+        }
+        await this.delay(isLenient ? 200 : 100);
 
-      // Use ATST96 (384ms) as default for better compatibility
-      try {
-        await this.sendCommand('ATST96');
-      } catch (e) {
-        console.warn('ATST96 failed:', e instanceof Error ? e.message : e);
-      }
-      await this.delay(100);
+        // ATST96 - Set timeout (use shorter timeout for old clones)
+        try {
+          await this.sendCommand(isLenient ? 'ATST32' : 'ATST96');
+        } catch (e) {
+          if (isStrict) throw e;
+          console.warn('ATST failed:', e instanceof Error ? e.message : e);
+          // Try default timeout
+          try {
+            await this.sendCommand('ATST0');
+          } catch {
+            // Ignore
+          }
+        }
+        await this.delay(isLenient ? 200 : 100);
 
-      try {
-        await this.sendCommand('ATAT1');
-      } catch (e) {
-        console.warn('ATAT1 failed:', e instanceof Error ? e.message : e);
-      }
-      await this.delay(100);
+        // ATAT1 - Adaptive timing (may fail on old clones)
+        try {
+          await this.sendCommand('ATAT1');
+        } catch (e) {
+          if (isStrict) throw e;
+          console.warn('ATAT1 failed (some clones do not support it):', e instanceof Error ? e.message : e);
+        }
+        await this.delay(isLenient ? 200 : 100);
 
-      // Show headers (needed for ISO-TP multi-frame detection)
-      try {
-        await this.sendCommand('ATH1');
-      } catch (e) {
-        console.warn('ATH1 failed:', e instanceof Error ? e.message : e);
+        // ATH1 - Headers on (needed for ISO-TP, may fail on old clones)
+        try {
+          await this.sendCommand('ATH1');
+        } catch (e) {
+          if (isStrict) throw e;
+          console.warn('ATH1 failed (some clones do not support headers):', e instanceof Error ? e.message : e);
+        }
+        await this.delay(isLenient ? 200 : 100);
       }
-      await this.delay(100);
 
       const version = await this.sendCommand('ATI');
 
@@ -376,15 +417,17 @@ export abstract class OBD2Connection extends EventEmitter {
         // AT@1 is not supported by most cheap ELM327 clones — silently ignored
       }
 
+      // ATSP0 - Set protocol to automatic (essential)
       try {
         await this.sendCommand('ATSP0');
       } catch (e) {
+        if (isStrict) throw e;
         console.warn('ATSP0 failed:', e instanceof Error ? e.message : e);
       }
-      await this.delay(100);
+      await this.delay(isLenient ? 200 : 100);
 
-      // Configure Flow Control for ISO-TP multiframe (Mode 09, VIN, etc.)
-      if (this.config.flowControl) {
+      // Configure Flow Control for ISO-TP multiframe (only if not in minimal mode)
+      if (!isMinimal && this.config.flowControl) {
         const fc = this.config.flowControl;
 
         // Enable/disable flow control (AT CFC0 = off, AT CFC1 = on)
@@ -392,9 +435,10 @@ export abstract class OBD2Connection extends EventEmitter {
           try {
             await this.sendCommand(fc.enabled ? 'ATCFC1' : 'ATCFC0');
           } catch (e) {
+            if (isStrict) throw e;
             console.warn('ATCFC failed:', e instanceof Error ? e.message : e);
           }
-          await this.delay(100);
+          await this.delay(isLenient ? 200 : 100);
         }
 
         // Set Flow Control Header (AT FC SH)
@@ -402,9 +446,10 @@ export abstract class OBD2Connection extends EventEmitter {
           try {
             await this.sendCommand(`AT FC SH ${fc.header}`);
           } catch (e) {
+            if (isStrict) throw e;
             console.warn('AT FC SH failed:', e instanceof Error ? e.message : e);
           }
-          await this.delay(100);
+          await this.delay(isLenient ? 200 : 100);
         }
 
         // Set Flow Control Data (AT FC SD)
@@ -412,9 +457,10 @@ export abstract class OBD2Connection extends EventEmitter {
           try {
             await this.sendCommand(`AT FC SD ${fc.data}`);
           } catch (e) {
+            if (isStrict) throw e;
             console.warn('AT FC SD failed:', e instanceof Error ? e.message : e);
           }
-          await this.delay(100);
+          await this.delay(isLenient ? 200 : 100);
         }
 
         // Set Flow Control Mode (AT FC SM)
@@ -422,9 +468,10 @@ export abstract class OBD2Connection extends EventEmitter {
           try {
             await this.sendCommand(`AT FC SM ${fc.mode.toString(16).toUpperCase()}`);
           } catch (e) {
+            if (isStrict) throw e;
             console.warn('AT FC SM failed:', e instanceof Error ? e.message : e);
           }
-          await this.delay(100);
+          await this.delay(isLenient ? 200 : 100);
         }
       }
 
