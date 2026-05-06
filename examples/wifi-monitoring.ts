@@ -77,7 +77,11 @@ async function main(): Promise<void> {
         if (results.length > 0) {
           const data: Record<string, string> = {};
           for (const r of results) {
-            data[r.command] = `${r.value} ${r.unit}`;
+            if ('error' in r) {
+              data[r.command] = r.error;
+            } else {
+              data[r.command] = `${r.value} ${r.unit}`;
+            }
           }
           console.log(JSON.stringify(data, null, 2));
           console.log('---');
