@@ -55,6 +55,12 @@ export abstract class OBD2Connection extends EventEmitter {
     if (clean.includes('BUS INIT')) {
       throw new ProtocolError(`Bus initialization error: ${clean}`);
     }
+    if (clean.includes('BUS INIT...ERROR') || clean.includes('BUS INIT...ERROR')) {
+      throw new ConnectionError(`Vehicle not responding (BUS INIT failed): ${clean}`);
+    }
+    if (clean.includes('FB ERROR')) {
+      throw new ProtocolError(`Feedback error from adapter: ${clean}`);
+    }
     if (clean === '?') {
       throw new ProtocolError(`Unknown command or invalid response: ${clean}`);
     }

@@ -34,13 +34,14 @@ export class ResponseMatcher extends EventEmitter {
     timeout: number,
     matchFn?: (response: string) => boolean,
   ): { id: string; promise: Promise<string> } {
-    // If destroyed, reject immediately without creating timer
+    // If destroyed, reject immediately without creating timer or incrementing counter
     if (this.destroyed) {
       const promise = Promise.reject(new ProtocolError('Connection lost. Matcher is destroyed.'));
       return { id: 'destroyed', promise };
     }
 
-    const id = `req_${Date.now()}_${this.requestCounter++}`;
+    const currentCount = this.requestCounter++;
+    const id = `req_${Date.now()}_${currentCount}`;
 
     let resolveFn: (value: string) => void;
     let rejectFn: (error: Error) => void;
@@ -176,10 +177,12 @@ export class ResponseMatcher extends EventEmitter {
 
   /**
    * Resets the destroyed state (for reconnection).
+   * Also resets the request counter to avoid overflow.
    */
   reset(): void {
     this.destroyed = false;
     this.pendingRequests.clear();
+    this.requestCounter = 0;
   }
 
   /**
