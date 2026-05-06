@@ -268,20 +268,26 @@ export function getCommandByPid(pid: string): OBD2Command | undefined {
 
 /**
  * Returns all predefined OBD2 commands.
+ * Returns copies to prevent accidental mutation.
  */
 export function getAllCommands(): OBD2Command[] {
-  return Object.values(OBD2_COMMANDS);
+  return Object.values(OBD2_COMMANDS).map((cmd) => ({ ...cmd }));
 }
 
 /**
  * Returns commands filtered by category (MODE_01 or MODE_09).
+ * Returns copies to prevent accidental mutation.
  */
 export function getCommandsByCategory(category: string): OBD2Command[] {
   if (category === 'MODE_01') {
-    return Object.values(OBD2_COMMANDS).filter((cmd) => cmd.pid.startsWith('01'));
+    return Object.values(OBD2_COMMANDS)
+      .filter((cmd) => cmd.pid.startsWith('01'))
+      .map((cmd) => ({ ...cmd }));
   }
   if (category === 'MODE_09') {
-    return Object.values(OBD2_COMMANDS).filter((cmd) => cmd.pid.startsWith('09'));
+    return Object.values(OBD2_COMMANDS)
+      .filter((cmd) => cmd.pid.startsWith('09'))
+      .map((cmd) => ({ ...cmd }));
   }
   return [];
 }

@@ -6,6 +6,9 @@ import { SerialConnection } from './serial-connection';
 import {
   ConnectionConfig,
   ConnectionError,
+  DiagnosticMode,
+  DiagnosticRequestConfig,
+  DiagnosticResponse,
   OBD2AdapterInfo,
   OBD2Command,
   OBD2Response,
@@ -21,9 +24,44 @@ export class OBD2Client extends EventEmitter {
   private connection: OBD2Connection | undefined;
   private adapterInfo?: OBD2AdapterInfo;
   private isInitialized = false;
+  private autoReconnect = false;
+  private reconnectTimer?: NodeJS.Timeout;
+  private watchdogTimer?: NodeJS.Timeout;
+  private commandQueue: Array<{ command: string; resolve: (value: any) => void; reject: (error: any) => void }> = [];
 
   constructor(private config: ConnectionConfig) {
     super();
+  }
+
+  /**
+   * Enables or disables auto-reconnect on connection loss.
+   */
+  setAutoReconnect(enabled: boolean): void {
+    this.autoReconnect = enabled;
+  }
+
+  /**
+   * Starts a watchdog to detect stuck command queues.
+   */
+  private startWatchdog(): void {
+    this.stopWatchdog();
+    this.watchdogTimer = setInterval(() => {
+      if (this.commandQueue.length > 0) {
+        this.emit('warning', 'Command queue may be stuck');
+        // Clear old entries
+        this.commandQueue = [];
+      }
+    }, 30000); // Check every 30 seconds
+  }
+
+  /**
+   * Stops the watchdog timer.
+   */
+  private stopWatchdog(): void {
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = undefined;
+    }
   }
 
   /**
@@ -33,9 +71,17 @@ export class OBD2Client extends EventEmitter {
     try {
       if (this.connection) {
         this.connection.removeAllListeners();
-        await this.connection.disconnect().catch(() => {});
+        // Properly await disconnect before creating new connection
+        try {
+          await this.connection.disconnect();
+        } catch {
+          // Ignore disconnect errors
+        }
         this.connection = undefined;
         this.isInitialized = false;
+        this.stopWatchdog();
+        // Small delay to ensure port is fully released
+        await this.delay(500);
       }
 
       if (this.config.type === 'serial') {
@@ -49,7 +95,25 @@ export class OBD2Client extends EventEmitter {
       }
 
       this.connection.on('connected', () => this.emit('connected'));
-      this.connection.on('disconnected', () => this.emit('disconnected'));
+      this.connection.on('disconnected', () => {
+        this.emit('disconnected');
+        if (this.autoReconnect && !this.reconnectTimer) {
+          this.emit('reconnecting');
+          this.reconnectTimer = setTimeout(async () => {
+            try {
+              await this.connect();
+              this.reconnectTimer = undefined;
+              this.emit('reconnected');
+            } catch {
+              this.reconnectTimer = setTimeout(() => {
+                this.reconnectTimer = undefined;
+                // Retry connect
+                this.connect().catch(() => {});
+              }, 5000);
+            }
+          }, 1000);
+        }
+      });
       this.connection.on('error', (error) => this.emit('error', error));
       this.connection.on('data', (data) => this.emit('rawData', data));
 
@@ -57,6 +121,7 @@ export class OBD2Client extends EventEmitter {
 
       this.adapterInfo = await this.connection.initialize();
       this.isInitialized = true;
+      this.startWatchdog();
 
       this.emit('ready', this.adapterInfo);
     } catch (error) {
@@ -80,6 +145,9 @@ export class OBD2Client extends EventEmitter {
    * Queries a command by its name (e.g., 'ENGINE_RPM').
    */
   async query(commandName: string): Promise<OBD2Response> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
     if (!this.isConnected()) {
       throw new ConnectionError('Not connected to OBD2 adapter');
     }
@@ -96,6 +164,9 @@ export class OBD2Client extends EventEmitter {
    * Queries a command by its PID string (e.g., '010C').
    */
   async queryPid(pid: string): Promise<OBD2Response> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
     if (!this.isConnected()) {
       throw new ConnectionError('Not connected to OBD2 adapter');
     }
@@ -112,6 +183,9 @@ export class OBD2Client extends EventEmitter {
    * Sends a command to the adapter and decodes the response.
    */
   async queryCommand(command: OBD2Command): Promise<OBD2Response> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
     if (!this.connection) {
       throw new ConnectionError('Not connected to OBD2 adapter');
     }
@@ -138,14 +212,19 @@ export class OBD2Client extends EventEmitter {
   /**
    * Queries multiple commands sequentially.
    * Sequential execution is intentional to avoid BUFFER FULL on cheap clones.
+   * Returns array with either OBD2Response or error info.
    */
-  async queryMultiple(commandNames: string[]): Promise<OBD2Response[]> {
-    const results: OBD2Response[] = [];
+  async queryMultiple(
+    commandNames: string[],
+  ): Promise<Array<OBD2Response | { command: string; error: string }>> {
+    const results: Array<OBD2Response | { command: string; error: string }> = [];
     for (const commandName of commandNames) {
       try {
         const result = await this.query(commandName);
         results.push(result);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        results.push({ command: commandName, error: message });
         this.emit('error', error);
       }
       await this.delay(100);
@@ -179,16 +258,18 @@ export class OBD2Client extends EventEmitter {
   }
 
   /**
-   * Retrieves vehicle information including VIN and adapter details.
+   * Gets vehicle information including VIN and adapter details.
    */
-  async getVehicleInfo(): Promise<Record<string, string | OBD2AdapterInfo>> {
-    const info: Record<string, string | OBD2AdapterInfo> = {};
+  async getVehicleInfo(): Promise<Record<string, string | OBD2AdapterInfo | { error?: string }>> {
+    const info: Record<string, string | OBD2AdapterInfo | { error?: string }> = {};
 
     try {
       const vin = await this.query('VIN');
       info.vin = vin.value as string;
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       info.vin = 'Not available';
+      info.vinError = { error: message };
     }
 
     try {
@@ -226,25 +307,50 @@ export class OBD2Client extends EventEmitter {
     return Object.keys(OBD2_COMMANDS);
   }
 
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Extracts base PID from a query string like "0100", "0120", etc.
+   * Returns the numeric base PID (e.g., 0x00, 0x20, 0x40...).
+   */
+  private getBasePid(query: string): number {
+    // query is like "0100", "0120", etc. - extract the last two chars as hex
+    const baseHex = query.substring(2); // Remove mode "01"
+    return parseInt(baseHex, 16);
+  }
+
+  /**
+   * Parses supported PIDs from a Mode 1 PID 00 response.
+   * Uses getBasePid for clarity.
+   */
   private parseSupportedPids(response: string, baseQuery: string): string[] {
     const supportedPids: string[] = [];
-    const cleanResponse = response.replace(/\s/g, '');
-    const dataStart = 4;
+    const cleanResponse = response.replace(/[\r\n>]/g, '').replace(/\s/g, '');
+
+    // Extract data portion (skip response mode byte 41)
+    const dataStart = 2; // Skip "41"
     const data = cleanResponse.substring(dataStart);
 
-    if (data.length >= 8) {
-      const hex = data.substring(0, 8);
-      let binary = '';
-      for (let i = 0; i < hex.length; i++) {
-        const digit = parseInt(hex[i]!, 16);
-        binary += digit.toString(2).padStart(4, '0');
-      }
-      const basePid = parseInt(baseQuery.substring(2), 16);
-      for (let i = 0; i < binary.length; i++) {
-        if (binary[i] === '1') {
-          const pidNumber = basePid + i + 1;
-          supportedPids.push(pidNumber.toString(16).toUpperCase().padStart(2, '0'));
-        }
+    // Validate minimum length (need at least 8 hex chars = 4 bytes)
+    if (data.length < 8) {
+      return [];
+    }
+
+    const hex = data.substring(0, 8);
+    let binary = '';
+    for (let i = 0; i < hex.length; i++) {
+      const digit = parseInt(hex[i]!, 16);
+      if (isNaN(digit)) continue;
+      binary += digit.toString(2).padStart(4, '0');
+    }
+
+    const basePid = this.getBasePid(baseQuery);
+    for (let i = 0; i < binary.length; i++) {
+      if (binary[i] === '1') {
+        const pidNumber = basePid + i + 1;
+        supportedPids.push(pidNumber.toString(16).toUpperCase().padStart(2, '0'));
       }
     }
 
@@ -293,7 +399,254 @@ export class OBD2Client extends EventEmitter {
     return (await this.query('THROTTLE_POS')).value as number;
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  /**
+   * Sends a custom diagnostic request using DiagnosticRequestConfig.
+   * Similar to OpenXC's create_diagnostic_request method.
+   */
+  async sendDiagnosticRequest(config: DiagnosticRequestConfig): Promise<DiagnosticResponse> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+    if (!this.connection) {
+      throw new ConnectionError('Not connected to OBD2 adapter');
+    }
+
+    try {
+      const response = await this.connection.sendDiagnosticRequest(config);
+      if (!response) {
+        throw new ProtocolError('No response received from diagnostic request');
+      }
+      return response;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ProtocolError(`Diagnostic request failed: ${message}`);
+    }
+  }
+
+  /**
+   * Sends a Mode 1 request (current data) for a specific PID.
+   * Convenience method for common diagnostic requests.
+   */
+  async queryMode1(pid: number): Promise<DiagnosticResponse> {
+    return this.sendDiagnosticRequest({
+      mode: DiagnosticMode.CURRENT_DATA,
+      pid,
+      name: `Mode 1 PID 0x${pid.toString(16).toUpperCase()}`,
+    });
+  }
+
+  /**
+   * Gets the VIN using Mode 9 PID 02.
+   * Similar to OpenXC's get_vin method.
+   */
+  async getVIN(): Promise<string> {
+    try {
+      const response = await this.query('VIN');
+      return response.value as string;
+    } catch {
+      // Fallback to custom diagnostic request
+      const response = await this.sendDiagnosticRequest({
+        mode: DiagnosticMode.VEHICLE_INFO,
+        pid: 0x02,
+        name: 'VIN',
+      });
+
+      if (response.payload) {
+        // VIN is ASCII encoded in the payload
+        const bytes = response.payload.match(/.{1,2}/g) || [];
+        return bytes
+          .map((b) => String.fromCharCode(parseInt(b, 16)))
+          .join('')
+          .trim();
+      }
+      return 'Not available';
+    }
+  }
+
+  /**
+   * Gets the calibration ID (Mode 9 PID 04).
+   */
+  async getCalibrationID(): Promise<string> {
+    const response = await this.sendDiagnosticRequest({
+      mode: DiagnosticMode.VEHICLE_INFO,
+      pid: 0x04,
+      name: 'Calibration ID',
+    });
+
+    if (response.payload) {
+      const bytes = response.payload.match(/.{1,2}/g) || [];
+      return bytes
+        .map((b) => String.fromCharCode(parseInt(b, 16)))
+        .join('')
+        .trim();
+    }
+    return 'Not available';
+  }
+
+  /**
+   * Scans all OBD-II PIDs to see which ones respond.
+   * Similar to OpenXC's openxc-obd2scanner tool.
+   */
+  async scanPids(
+    mode: number = 0x01,
+    startPid: number = 0x00,
+    endPid: number = 0x80,
+    onProgress?: (pid: number, response: DiagnosticResponse | null) => void,
+  ): Promise<Map<number, DiagnosticResponse>> {
+    const results = new Map<number, DiagnosticResponse>();
+
+    for (let pid = startPid; pid < endPid; pid++) {
+      try {
+        const response = await this.sendDiagnosticRequest({
+          mode,
+          pid,
+        });
+
+        if (response.success) {
+          results.set(pid, response);
+        }
+
+        if (onProgress) {
+          onProgress(pid, response.success ? response : null);
+        }
+      } catch {
+        if (onProgress) {
+          onProgress(pid, null);
+        }
+      }
+
+      await this.delay(50); // Small delay between requests
+    }
+
+    return results;
+  }
+
+  /**
+   * Gets all DTCs (Diagnostic Trouble Codes) using Mode 3.
+   */
+  async getDTCs(): Promise<string[]> {
+    if (!this.isInitialized || !this.connection) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+
+    try {
+      const response = await this.connection.sendCommand('03');
+      return this.parseDTCs(response);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ProtocolError(`Failed to get DTCs: ${message}`);
+    }
+  }
+
+  /**
+   * Clears all DTCs using Mode 4.
+   */
+  async clearDTCs(): Promise<void> {
+    if (!this.isInitialized || !this.connection) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+
+    try {
+      await this.connection.sendCommand('04');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ProtocolError(`Failed to clear DTCs: ${message}`);
+    }
+  }
+
+  /**
+   * Parses DTCs from a Mode 3 response.
+   * Uses proper byte pair matching.
+   */
+  private parseDTCs(response: string): string[] {
+    const dtcs: string[] = [];
+    const clean = this.cleanResponse(response);
+    // Use proper byte pair matching (pairs of 2 hex chars)
+    const bytes = clean.match(/..?/g) || [];
+
+    // Skip mode response byte (43 = 0x40 + 3)
+    for (let i = 1; i < bytes.length - 1; i += 2) {
+      const byte1 = parseInt(bytes[i]!, 16);
+      const byte2 = parseInt(bytes[i + 1]!, 16);
+
+      if (byte1 === 0 && byte2 === 0) break;
+
+      const code = this.decodeDTC(byte1, byte2);
+      if (code) {
+        dtcs.push(code);
+      }
+    }
+
+    return dtcs;
+  }
+
+  /**
+   * Decodes two bytes into a DTC code.
+   */
+  private decodeDTC(byte1: number, byte2: number): string | null {
+    const firstChar = ['P', 'C', 'B', 'U'][(byte1 >> 6) & 0x3];
+    if (!firstChar) return null;
+
+    const secondChar = ((byte1 >> 4) & 0x3).toString();
+    const thirdChar = (byte1 & 0xf).toString(16).toUpperCase();
+    const fourthChar = (byte2 >> 4).toString(16).toUpperCase();
+    const fifthChar = (byte2 & 0xf).toString(16).toUpperCase();
+
+    return `${firstChar}${secondChar}${thirdChar}${fourthChar}${fifthChar}`;
+  }
+
+  /**
+   * Gets adapter firmware version.
+   * Similar to OpenXC's version command.
+   */
+  async getAdapterVersion(): Promise<string> {
+    if (!this.adapterInfo) {
+      throw new ConnectionError('Adapter not initialized');
+    }
+    return this.adapterInfo.version;
+  }
+
+  /**
+   * Gets protocol information.
+   */
+  async getProtocolInfo(): Promise<{
+    protocol: string;
+    version: string;
+    device: string;
+  }> {
+    if (!this.adapterInfo) {
+      throw new ConnectionError('Adapter not initialized');
+    }
+    return {
+      protocol: this.adapterInfo.protocol,
+      version: this.adapterInfo.version,
+      device: this.adapterInfo.device,
+    };
+  }
+
+  /**
+   * Sends raw AT command (for debugging).
+   */
+  async sendRaw(command: string): Promise<string> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+    if (!this.connection) {
+      throw new ConnectionError('Not connected to OBD2 adapter');
+    }
+    return this.connection.sendCommand(command);
+  }
+
+  /**
+   * Clean response helper.
+   */
+  private cleanResponse(response: string): string {
+    return response
+      .replace(/[\r\n>]/g, '')
+      .trim()
+      .toUpperCase()
+      .split(' ')
+      .filter((part) => part.length > 0)
+      .join('');
   }
 }

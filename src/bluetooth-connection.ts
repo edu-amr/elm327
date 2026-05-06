@@ -1,10 +1,5 @@
 import { OBD2Connection } from './connection';
-import { ConnectionConfig, ConnectionError, TimeoutError } from './types';
-
-interface QueueEntry {
-  resolve: (value: string) => void;
-  reject: (error: Error) => void;
-}
+import { ConnectionConfig, ConnectionError } from './types';
 
 /**
  * Bluetooth connection to an ELM327 adapter.
@@ -12,6 +7,8 @@ interface QueueEntry {
  * In browsers: uses the Web Bluetooth API (BLE only).
  * In Node.js: not natively supported — use SerialConnection with a paired
  * device via rfcomm (Linux: /dev/rfcomm0) or /dev/tty.* (macOS).
+ *
+ * Updated to use ResponseMatcher for better request/response matching.
  */
 export class BluetoothConnection extends OBD2Connection {
   private socket: {
@@ -19,8 +16,9 @@ export class BluetoothConnection extends OBD2Connection {
     close?: () => void;
     disconnect?: () => void;
   } | null = null;
-  private responseQueue: QueueEntry[] = [];
   private buffer = '';
+  private _btHandler: ((event: any) => void) | undefined = undefined;
+  private _characteristic: any = null;
 
   constructor(config: ConnectionConfig) {
     super(config);
@@ -45,9 +43,16 @@ export class BluetoothConnection extends OBD2Connection {
   }
 
   async disconnect(): Promise<void> {
-    this._flushQueueWithError(new ConnectionError('Disconnected'));
+    this.rejectAllPending(new ConnectionError('Disconnected'));
     if (this.socket) {
       try {
+        // Remove BLE listener if it exists
+        if (this._characteristic && this._btHandler) {
+          this._characteristic.removeEventListener('characteristicvaluechanged', this._btHandler);
+          this._characteristic = undefined;
+          this._btHandler = undefined;
+        }
+
         if (typeof this.socket.close === 'function') this.socket.close();
         else if (typeof this.socket.disconnect === 'function') this.socket.disconnect();
       } catch {
@@ -59,47 +64,32 @@ export class BluetoothConnection extends OBD2Connection {
     this.emit('disconnected');
   }
 
-  async sendCommand(command: string): Promise<string> {
+  async sendRaw(data: string): Promise<void> {
     if (!this.socket) {
       throw new ConnectionError('Not connected via Bluetooth');
     }
 
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new TimeoutError(`Command timed out: ${command}`));
-      }, this.timeout);
+    // Check if still connected before sending
+    if (!this.isConnected) {
+      throw new ConnectionError('Connection lost before sending data');
+    }
 
-      this.responseQueue.push({
-        resolve: (response: string) => {
-          clearTimeout(timeoutId);
-          try {
-            this.validateResponse(response);
-            resolve(this.cleanResponse(response));
-          } catch (error) {
-            reject(error);
-          }
-        },
-        reject: (error: Error) => {
-          clearTimeout(timeoutId);
-          reject(error);
-        },
-      });
-
-      const cmd = command + '\r';
-      const socket = this.socket!;
-      try {
-        socket.send(cmd);
-      } catch (error) {
-        clearTimeout(timeoutId);
-        this.responseQueue.pop();
-        const message = error instanceof Error ? error.message : String(error);
-        reject(new ConnectionError(`Failed to send command: ${message}`));
-      }
-    });
+    const cmd = data + '\r';
+    const socket = this.socket!;
+    try {
+      await socket.send(cmd);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ConnectionError(`Failed to send data: ${message}`);
+    }
   }
 
   isConnectionOpen(): boolean {
     return this.socket !== null && this.isConnected;
+  }
+
+  protected clearBuffer(): void {
+    this.buffer = '';
   }
 
   private hasWebBluetooth(): boolean {
@@ -126,10 +116,11 @@ export class BluetoothConnection extends OBD2Connection {
     const characteristic = await service.getCharacteristic('0000fff1-0000-1000-8000-00805f9b34fb');
 
     await characteristic.startNotifications();
-    characteristic.addEventListener(
-      'characteristicvaluechanged',
-      this.handleBluetoothData.bind(this),
-    );
+
+    // Save reference for later removal
+    this._btHandler = this.handleBluetoothData.bind(this);
+    this._characteristic = characteristic;
+    characteristic.addEventListener('characteristicvaluechanged', this._btHandler);
 
     this.socket = {
       send: (data: string): void | Promise<void> => {
@@ -157,18 +148,16 @@ export class BluetoothConnection extends OBD2Connection {
 
     let idx: number;
     while ((idx = this.buffer.indexOf('>')) !== -1) {
-      const raw = this.buffer.slice(0, idx).trim();
+      // Include the '>' prompt in the data passed to handleIncomingData
+      const raw = this.buffer.slice(0, idx + 1);
       this.buffer = this.buffer.slice(idx + 1);
-      if (raw.length > 0 && this.responseQueue.length > 0) {
-        this.responseQueue.shift()!.resolve(raw);
-      }
-      if (raw.length > 0) this.emit('data', raw);
-    }
-  }
+      if (raw.trim().length > 0) {
+        // Send to ResponseMatcher for request matching (with '>' included)
+        this.handleIncomingData(raw);
 
-  private _flushQueueWithError(err: Error): void {
-    while (this.responseQueue.length > 0) {
-      this.responseQueue.shift()!.reject(err);
+        // Also emit raw data event (without '>' for compatibility)
+        this.emit('data', raw.replace('>', '').trim());
+      }
     }
   }
 

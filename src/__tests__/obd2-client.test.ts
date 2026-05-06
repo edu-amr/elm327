@@ -42,15 +42,16 @@ describe('OBD2Client', () => {
 
   describe('connection management', () => {
     it('should throw error when querying without connection', async () => {
-      await expect(client.query('ENGINE_RPM')).rejects.toThrow('Not connected to OBD2 adapter');
+      await expect(client.query('ENGINE_RPM')).rejects.toThrow('Adapter not initialized. Call connect() first.');
     });
 
     it('should throw error for unknown command', async () => {
-      // Mock connection
+      // Mock connection and isInitialized
       (client as any).connection = {
         getConnectionStatus: () => true,
         disconnect: async () => {},
       };
+      (client as any).isInitialized = true;
 
       await expect(client.query('UNKNOWN_COMMAND')).rejects.toThrow(
         'Unknown command: UNKNOWN_COMMAND',
@@ -60,11 +61,12 @@ describe('OBD2Client', () => {
 
   describe('convenience methods', () => {
     beforeEach(() => {
-      // Mock connection and query method
+      // Mock connection and isInitialized
       (client as any).connection = {
         getConnectionStatus: () => true,
         disconnect: async () => {},
       };
+      (client as any).isInitialized = true;
 
       jest.spyOn(client, 'query').mockImplementation(async (command: any) => {
         const mockResponses: Record<string, any> = {

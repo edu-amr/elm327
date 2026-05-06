@@ -1,19 +1,15 @@
 import { SerialPort } from 'serialport';
 import { OBD2Connection } from './connection';
-import { ConnectionConfig, ConnectionError, TimeoutError } from './types';
-
-interface QueueEntry {
-  resolve: (value: string) => void;
-  reject: (error: Error) => void;
-}
+import { ConnectionConfig, ConnectionError } from './types';
 
 /**
  * Serial (USB/RS232) connection to an ELM327 adapter.
  * The most reliable connection method for OBD2 communication.
+ *
+ * Updated to use ResponseMatcher for better request/response matching.
  */
 export class SerialConnection extends OBD2Connection {
   private port?: SerialPort;
-  private responseQueue: QueueEntry[] = [];
   protected buffer = '';
   private lineEnding: string;
 
@@ -49,7 +45,7 @@ export class SerialConnection extends OBD2Connection {
 
   async disconnect(): Promise<void> {
     return new Promise((resolve) => {
-      this._flushQueueWithError(new ConnectionError('Disconnected'));
+      this.rejectAllPending(new ConnectionError('Disconnected'));
       if (this.port && this.port.isOpen) {
         this.port.close(() => {
           this.isConnected = false;
@@ -63,40 +59,24 @@ export class SerialConnection extends OBD2Connection {
     });
   }
 
-  async sendCommand(command: string): Promise<string> {
+  async sendRaw(data: string): Promise<void> {
     if (!this.port) {
       throw new ConnectionError('Not connected to serial port');
     }
 
     return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        const idx = this.responseQueue.findIndex((e) => e.reject === reject);
-        if (idx !== -1) this.responseQueue.splice(idx, 1);
-        reject(new TimeoutError(`Command timed out: ${command}`));
-      }, this.timeout);
-
-      this.responseQueue.push({
-        resolve: (response: string) => {
-          clearTimeout(timeoutId);
-          try {
-            this.validateResponse(response);
-            resolve(this.cleanResponse(response));
-          } catch (error) {
-            reject(error);
-          }
-        },
-        reject: (error: Error) => {
-          clearTimeout(timeoutId);
-          reject(error);
-        },
-      });
-
-      this.port!.write(command + this.lineEnding, (error) => {
+      this.port!.write(data + this.lineEnding, (error) => {
         if (error) {
-          clearTimeout(timeoutId);
-          const idx = this.responseQueue.findIndex((e) => e.reject === reject);
-          if (idx !== -1) this.responseQueue.splice(idx, 1);
-          reject(new ConnectionError(`Failed to send command: ${error.message}`));
+          reject(new ConnectionError(`Failed to send data: ${error.message}`));
+        } else {
+          // Only flush write buffer, don't close the port
+          this.port!.drain((drainError) => {
+            if (drainError) {
+              reject(new ConnectionError(`Failed to drain serial port: ${drainError.message}`));
+            } else {
+              resolve();
+            }
+          });
         }
       });
     });
@@ -110,38 +90,37 @@ export class SerialConnection extends OBD2Connection {
     if (!this.port) return;
 
     this.port.on('data', (data: Buffer) => {
-      this.buffer += data.toString();
+      const chunk = data.toString();
+      this.buffer += chunk;
 
+      // Process complete responses (terminated by '>')
       let idx: number;
       while ((idx = this.buffer.indexOf('>')) !== -1) {
-        const raw = this.buffer.slice(0, idx).trim();
+        // Include the '>' prompt in the data passed to handleIncomingData
+        const raw = this.buffer.slice(0, idx + 1);
         this.buffer = this.buffer.slice(idx + 1);
 
-        if (raw.length > 0 && this.responseQueue.length > 0) {
-          this.responseQueue.shift()!.resolve(raw);
-        }
-        if (raw.length > 0) {
-          this.emit('data', raw);
+        if (raw.trim().length > 0) {
+          // Send to ResponseMatcher for request matching (with '>' included)
+          this.handleIncomingData(raw);
+
+          // Also emit raw data event (without '>' for compatibility)
+          this.emit('data', raw.replace('>', '').trim());
         }
       }
     });
 
     this.port.on('error', (error: Error) => {
-      this._flushQueueWithError(new ConnectionError(`Serial port error: ${error.message}`));
-      this.emit('error', new ConnectionError(`Serial port error: ${error.message}`));
+      const err = new ConnectionError(`Serial port error: ${error.message}`);
+      this.rejectAllPending(err);
+      this.emit('error', err);
     });
 
     this.port.on('close', () => {
       this.isConnected = false;
-      this._flushQueueWithError(new ConnectionError('Serial port closed'));
+      this.rejectAllPending(new ConnectionError('Serial port closed'));
       this.emit('disconnected');
     });
-  }
-
-  private _flushQueueWithError(err: Error): void {
-    while (this.responseQueue.length > 0) {
-      this.responseQueue.shift()!.reject(err);
-    }
   }
 
   protected clearBuffer(): void {

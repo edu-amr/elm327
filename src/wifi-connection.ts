@@ -1,22 +1,18 @@
 import net from 'node:net';
 import { OBD2Connection } from './connection';
-import { ConnectionConfig, ConnectionError, TimeoutError } from './types';
-
-interface QueueEntry {
-  resolve: (value: string) => void;
-  reject: (error: Error) => void;
-}
+import { ConnectionConfig, ConnectionError } from './types';
 
 /**
  * WiFi (TCP/IP) connection to an ELM327 adapter.
  * WiFi adapters connect over TCP, typically at 192.168.0.10:35000.
+ *
+ * Updated to use ResponseMatcher for better request/response matching.
  */
 export class WifiConnection extends OBD2Connection {
   private client: net.Socket | null = null;
   private host: string;
   private port: number;
   private lineEnding: string;
-  private responseQueue: QueueEntry[] = [];
   protected buffer = '';
 
   constructor(config: ConnectionConfig) {
@@ -40,6 +36,8 @@ export class WifiConnection extends OBD2Connection {
       this.client.connect(this.port, this.host, () => {
         settled = true;
         this.isConnected = true;
+        // Disable the default timeout after successful connect
+        this.client!.setTimeout(0);
         this.emit('connected');
         resolve();
       });
@@ -49,22 +47,23 @@ export class WifiConnection extends OBD2Connection {
 
         let idx: number;
         while ((idx = this.buffer.indexOf('>')) !== -1) {
-          const raw = this.buffer.slice(0, idx).trim();
+          // Include the '>' prompt in the data passed to handleIncomingData
+          const raw = this.buffer.slice(0, idx + 1);
           this.buffer = this.buffer.slice(idx + 1);
 
-          if (raw.length > 0 && this.responseQueue.length > 0) {
-            const entry = this.responseQueue.shift()!;
-            entry.resolve(raw);
-          }
+          if (raw.trim().length > 0) {
+            // Send to ResponseMatcher for request matching (with '>' included)
+            this.handleIncomingData(raw);
 
-          if (raw.length > 0) {
-            this.emit('data', raw);
+            // Also emit raw data event (without '>' for compatibility)
+            this.emit('data', raw.replace('>', '').trim());
           }
         }
       });
 
       this.client.on('error', (err: Error) => {
-        this._flushQueueWithError(new ConnectionError(`WiFi error: ${err.message}`));
+        const error = new ConnectionError(`WiFi error: ${err.message}`);
+        this.rejectAllPending(error);
         this.emit('error', err);
         if (!settled) {
           settled = true;
@@ -74,53 +73,37 @@ export class WifiConnection extends OBD2Connection {
 
       this.client.on('timeout', () => {
         const err = new ConnectionError('Connection timeout');
-        this._flushQueueWithError(err);
+        this.rejectAllPending(err);
         this.client?.destroy();
         this.emit('error', err);
       });
 
       this.client.on('close', () => {
         this.isConnected = false;
-        this._flushQueueWithError(new ConnectionError('Connection closed'));
+        this.rejectAllPending(new ConnectionError('Connection closed'));
         this.emit('disconnected');
       });
     });
   }
 
-  async sendCommand(command: string): Promise<string> {
+  async sendRaw(data: string): Promise<void> {
     if (!this.isConnected || !this.client) {
       throw new ConnectionError('Not connected to WiFi adapter');
     }
 
     return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        const idx = this.responseQueue.findIndex((e) => e.reject === reject);
-        if (idx !== -1) this.responseQueue.splice(idx, 1);
-        reject(new TimeoutError(`Command timed out: ${command}`));
-      }, this.timeout);
-
-      this.responseQueue.push({
-        resolve: (resp: string) => {
-          clearTimeout(timeoutId);
-          try {
-            this.validateResponse(resp);
-            resolve(this.cleanResponse(resp));
-          } catch (error) {
-            reject(error);
-          }
-        },
-        reject: (err: Error) => {
-          clearTimeout(timeoutId);
-          reject(err);
-        },
+      this.client!.write(`${data}${this.lineEnding}`, (err) => {
+        if (err) {
+          reject(new ConnectionError(`Failed to send data: ${err.message}`));
+        } else {
+          resolve();
+        }
       });
-
-      this.client!.write(`${command}${this.lineEnding}`);
     });
   }
 
   async disconnect(): Promise<void> {
-    this._flushQueueWithError(new ConnectionError('Disconnected manually'));
+    this.rejectAllPending(new ConnectionError('Disconnected manually'));
     if (this.client) {
       this.client.destroy();
       this.client = null;
@@ -131,12 +114,6 @@ export class WifiConnection extends OBD2Connection {
 
   isConnectionOpen(): boolean {
     return this.isConnected && this.client !== null && !this.client.destroyed;
-  }
-
-  private _flushQueueWithError(err: Error): void {
-    while (this.responseQueue.length > 0) {
-      this.responseQueue.shift()!.reject(err);
-    }
   }
 
   protected clearBuffer(): void {

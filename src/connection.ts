@@ -1,22 +1,46 @@
 import { EventEmitter } from 'events';
-import { ConnectionConfig, ConnectionError, OBD2AdapterInfo, ProtocolError } from './types';
+import { ResponseMatcher } from './response-matcher';
+import {
+  ConnectionConfig,
+  ConnectionError,
+  DiagnosticMode,
+  DiagnosticRequestConfig,
+  DiagnosticResponse,
+  MultiframeMessage,
+  OBD2AdapterInfo,
+  ProtocolError,
+  TimeoutError,
+} from './types';
 
 /**
  * Abstract base class for all OBD2 connection types.
  * Provides common initialization, validation, and response cleaning logic.
+ *
+ * Inspired by OpenXC's controller implementation with improved
+ * response matching and multi-frame support.
  */
 export abstract class OBD2Connection extends EventEmitter {
   protected isConnected = false;
+  protected isInitialized = false;
   protected timeout: number;
+  protected responseMatcher: ResponseMatcher;
+  protected multiframeMessages: Map<number, MultiframeMessage> = new Map();
+  protected commandLock: Promise<void> = Promise.resolve();
 
   constructor(protected config: ConnectionConfig) {
     super();
     this.timeout = config.timeout || 5000;
+    this.responseMatcher = new ResponseMatcher();
+
+    // Forward unsolicited data events
+    this.responseMatcher.on('unsolicited', (data: string) => {
+      this.emit('unsolicited', data);
+    });
   }
 
   abstract connect(): Promise<void>;
   abstract disconnect(): Promise<void>;
-  abstract sendCommand(command: string): Promise<string>;
+  abstract sendRaw(data: string): Promise<void>;
   abstract isConnectionOpen(): boolean;
 
   /**
@@ -52,25 +76,197 @@ export abstract class OBD2Connection extends EventEmitter {
   }
 
   /**
+   * Sends a command and waits for response using the ResponseMatcher.
+   * Similar to OpenXC's complex_request pattern.
+   * Uses a mutex to prevent parallel commands from corrupting responses.
+   */
+  async sendCommand(command: string): Promise<string> {
+    if (!this.isConnectionOpen()) {
+      throw new ConnectionError('Not connected to adapter');
+    }
+
+    // Acquire mutex to prevent parallel commands
+    const previousLock = this.commandLock;
+    let resolveLock!: () => void;
+    this.commandLock = new Promise<void>((resolve) => {
+      resolveLock = resolve;
+    });
+
+    try {
+      // Wait for previous command to complete
+      await previousLock;
+
+      const { promise } = this.responseMatcher.addRequest(command, this.timeout);
+
+      try {
+        await this.sendRaw(command);
+        const response = await promise;
+        this.validateResponse(response);
+        return this.cleanResponse(response);
+      } catch (error) {
+        // Re-throw with better context
+        if (error instanceof ProtocolError || error instanceof TimeoutError) {
+          throw error;
+        }
+        throw new ConnectionError(
+          `Failed to send command: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    } finally {
+      // Release mutex
+      resolveLock();
+    }
+  }
+
+  /**
+   * Sends a diagnostic request with matching support.
+   * Similar to OpenXC's create_diagnostic_request.
+   */
+  async sendDiagnosticRequest(
+    request: DiagnosticRequestConfig,
+    waitForResponse = true,
+  ): Promise<DiagnosticResponse | null> {
+    const command = this.buildDiagnosticCommand(request);
+
+    if (!waitForResponse) {
+      await this.sendRaw(command);
+      return null;
+    }
+
+    const rawResponse = await this.sendCommand(command);
+    return this.parseDiagnosticResponse(rawResponse, request);
+  }
+
+  /**
+   * Builds a diagnostic command string from config.
+   */
+  protected buildDiagnosticCommand(request: DiagnosticRequestConfig): string {
+    const modeHex = request.mode.toString(16).padStart(2, '0').toUpperCase();
+    const pidHex =
+      request.pid !== undefined ? request.pid.toString(16).padStart(2, '0').toUpperCase() : '';
+    return modeHex + pidHex;
+  }
+
+  /**
+   * Parses a raw response into a DiagnosticResponse.
+   */
+  protected parseDiagnosticResponse(
+    rawResponse: string,
+    request: DiagnosticRequestConfig,
+  ): DiagnosticResponse {
+    const cleanResponse = rawResponse.replace(/[\r\n>]/g, '').trim();
+    const bytes = cleanResponse.split(/\s+/).filter((b) => b.length > 0);
+
+    const response: DiagnosticResponse = {
+      bus: request.bus || 1,
+      id: request.id || 0x7df,
+      mode: request.mode,
+      success: !cleanResponse.includes('NO DATA') && !cleanResponse.includes('ERROR'),
+      timestamp: new Date(),
+    };
+
+    if (request.pid !== undefined) {
+      response.pid = request.pid;
+    }
+
+    // Parse response bytes
+    if (bytes.length > 0) {
+      const responseMode = parseInt(bytes[0]!, 16);
+      response.mode = responseMode - 0x40;
+
+      if (bytes.length > 1 && request.pid !== undefined) {
+        response.pid = parseInt(bytes[1]!, 16);
+      }
+
+      if (bytes.length > 2) {
+        response.payload = bytes.slice(2).join('');
+      }
+    }
+
+    return response;
+  }
+
+  /**
+   * Handles incoming data and routes to ResponseMatcher.
+   * Should be called by subclasses when data is received.
+   * Handles multi-frame ISO-TP messages (like VIN).
+   */
+  protected handleIncomingData(data: string): void {
+    // Check for ISO-TP multi-frame messages
+    const lines = data.split(/[\r\n]+/).filter((l) => l.trim().length > 0);
+
+    for (const line of lines) {
+      const clean = line.trim().toUpperCase();
+      if (!clean) continue;
+
+      // Parse bytes to check for ISO-TP frame types
+      const bytes = clean.split(/\s+/).filter((b) => b.length > 0);
+      if (bytes.length === 0) continue;
+
+      const firstByte = parseInt(bytes[0]!, 16);
+
+      // ISO-TP First Frame (0x10-0x1F) or Consecutive Frame (0x20-0x2F)
+      if ((firstByte & 0xf0) === 0x10 || (firstByte & 0xf0) === 0x20) {
+        // Extract CAN ID from the response (assuming standard OBD-II response format)
+        // Typical format: CAN_ID MODE PID DATA... (e.g., "7E8 49 02 01 31 33...")
+        // For now, use a default ID for OBD-II responses
+        const canId = 0x7e8; // Standard OBD-II response ID
+
+        if (!this.multiframeMessages.has(canId)) {
+          this.multiframeMessages.set(
+            canId,
+            new MultiframeMessage(canId, DiagnosticMode.VEHICLE_INFO, 0x02),
+          );
+        }
+
+        const mfMsg = this.multiframeMessages.get(canId)!;
+        mfMsg.addFrame(clean);
+
+        if (mfMsg.isComplete) {
+          // Multi-frame message complete, create combined response
+          const combinedPayload = mfMsg.getCombinedPayload();
+          // Pass the combined data to response matcher
+          this.responseMatcher.handleData(combinedPayload);
+          this.multiframeMessages.delete(canId);
+          continue;
+        }
+        // Don't pass partial frames to response matcher
+        continue;
+      }
+
+      // Single frame or non-ISO-TP data, pass through normally
+      this.responseMatcher.handleData(clean);
+    }
+  }
+
+  /**
+   * Rejects all pending requests (useful on disconnect/error).
+   */
+  protected rejectAllPending(error: Error): void {
+    this.responseMatcher.rejectAll(error);
+  }
+
+  /**
    * Removes noise from raw adapter responses.
+   * Normalizes line endings and removes ELM327 specific messages.
    */
   protected cleanResponse(response: string): string {
     return response
       .replace(/SEARCHING\.\.\./gi, '')
       .replace(/BUS INIT\.\.\./gi, '')
-      .replace(/\r/g, ' ')
-      .replace(/\n/g, ' ')
-      .replace(/>/g, '')
+      .replace(/[\r\n]+/g, ' ') // Normalize all line endings
+      .replace(/>/g, '') // Remove ELM327 prompt
       .trim()
       .toUpperCase()
       .split(' ')
       .filter((part) => part.length > 0)
-      .join('');
+      .join(' ');
   }
 
   /**
    * Initializes the ELM327 adapter with standard AT commands.
    * Must be called after a successful connection.
+   * Includes retry logic for ATZ (up to 3 attempts).
    */
   async initialize(): Promise<OBD2AdapterInfo> {
     if (!this.isConnected) {
@@ -78,24 +274,59 @@ export abstract class OBD2Connection extends EventEmitter {
     }
 
     try {
-      await this.sendCommand('ATZ');
-      await this.delay(1500);
+      // Retry ATZ up to 3 times (some adapters need time to reset)
+      let atzSuccess = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await this.sendCommand('ATZ');
+          atzSuccess = true;
+          break;
+        } catch (error) {
+          if (attempt === 3) throw error;
+          await this.delay(2000);
+        }
+      }
 
+      // Emit debug info (can be captured by the 'debug' event)
+      this.emit('debug', { atzSuccess, message: `ATZ ${atzSuccess ? 'succeeded' : 'failed'}` });
+      await this.delay(1500);
       this.clearBuffer();
 
-      await this.sendCommand('ATE0');
+      // Initialize with individual error handling for each command
+      try {
+        await this.sendCommand('ATE0');
+      } catch (e) {
+        console.warn('ATE0 failed:', e instanceof Error ? e.message : e);
+      }
       await this.delay(100);
 
-      await this.sendCommand('ATL0');
+      try {
+        await this.sendCommand('ATL0');
+      } catch (e) {
+        console.warn('ATL0 failed:', e instanceof Error ? e.message : e);
+      }
       await this.delay(100);
 
-      await this.sendCommand('ATS0');
+      try {
+        await this.sendCommand('ATS0');
+      } catch (e) {
+        console.warn('ATS0 failed:', e instanceof Error ? e.message : e);
+      }
       await this.delay(100);
 
-      await this.sendCommand('ATST64');
+      // Use ATST96 (384ms) as default for better compatibility
+      try {
+        await this.sendCommand('ATST96');
+      } catch (e) {
+        console.warn('ATST96 failed:', e instanceof Error ? e.message : e);
+      }
       await this.delay(100);
 
-      await this.sendCommand('ATAT1');
+      try {
+        await this.sendCommand('ATAT1');
+      } catch (e) {
+        console.warn('ATAT1 failed:', e instanceof Error ? e.message : e);
+      }
       await this.delay(100);
 
       const version = await this.sendCommand('ATI');
@@ -108,10 +339,16 @@ export abstract class OBD2Connection extends EventEmitter {
         // AT@1 is not supported by most cheap ELM327 clones — silently ignored
       }
 
-      await this.sendCommand('ATSP0');
+      try {
+        await this.sendCommand('ATSP0');
+      } catch (e) {
+        console.warn('ATSP0 failed:', e instanceof Error ? e.message : e);
+      }
       await this.delay(100);
 
       const protocol = await this.sendCommand('ATDP');
+
+      this.isInitialized = true;
 
       return {
         version: this.cleanResponse(version),

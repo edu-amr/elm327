@@ -1,31 +1,40 @@
 // Main exports
-export { OBD2Client } from './obd2-client';
-export { OBD2Connection } from './connection';
-export { SerialConnection } from './serial-connection';
 export { BluetoothConnection } from './bluetooth-connection';
+export { OBD2Connection } from './connection';
+export { OBD2Client } from './obd2-client';
+export { SerialConnection } from './serial-connection';
 export { WifiConnection } from './wifi-connection';
 
 // Commands and utilities
-export { OBD2_COMMANDS, getCommandByPid, getAllCommands, getCommandsByCategory } from './commands';
+export { getAllCommands, getCommandByPid, getCommandsByCategory, OBD2_COMMANDS } from './commands';
 
 // Types and interfaces
 export type {
+  ConnectionConfig,
+  DiagnosticRequestConfig,
+  DiagnosticResponse,
+  OBD2AdapterInfo,
   OBD2Command,
   OBD2Response,
-  ConnectionConfig,
-  OBD2AdapterInfo,
 } from './types';
 
+// Enums and error classes
 export {
-  OBD2Protocol,
-  OBD2Error,
   ConnectionError,
-  TimeoutError,
+  DiagnosticMode,
+  OBD2Error,
+  OBD2Protocol,
   ProtocolError,
+  TimeoutError,
 } from './types';
 
-import type { ConnectionConfig } from './types';
+// Diagnostic utilities
+export { DiagnosticRequestBuilder, DiagnosticResponseParser } from './diagnostic-request';
+export { ResponseMatcher } from './response-matcher';
+
+// Convenience imports
 import { OBD2Client } from './obd2-client';
+import type { ConnectionConfig } from './types';
 
 // Convenience function to create a client
 export function createOBD2Client(config: ConnectionConfig): OBD2Client {
