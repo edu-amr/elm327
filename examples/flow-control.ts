@@ -43,7 +43,7 @@
  * ============================================================
  */
 
-import { OBD2Client, listSerialPorts, OBD2_COMMANDS } from '../src/index';
+import { listSerialPorts, OBD2_COMMANDS, OBD2Client } from '../src/index';
 
 async function main(): Promise<void> {
   const port = process.argv[2];
@@ -80,12 +80,12 @@ async function runWithPort(port: string): Promise<void> {
     timeout: 10000, // Longer timeout for multiframe
     // Flow Control configuration for ISO-TP multiframe
     flowControl: {
-      enabled: true,       // Enable Flow Control (AT CFC1)
-      header: '07E0',      // Request ID (standard OBD-II)
+      enabled: true, // Enable Flow Control (AT CFC1)
+      header: '07E0', // Request ID (standard OBD-II)
       // Flow Control response ID is typically request + 8 (0x7E0 -> 0x7E8)
       // The ELM327 automatically calculates this, but we can set it explicitly
-      data: '',            // No additional data bytes needed for standard OBD
-      mode: 0,             // Normal mode (wait for Flow Control frames)
+      data: '', // No additional data bytes needed for standard OBD
+      mode: 0, // Normal mode (wait for Flow Control frames)
     },
   };
 
@@ -142,7 +142,6 @@ async function runWithPort(port: string): Promise<void> {
         }
       }
     }
-
   } catch (error) {
     console.error('');
     console.error('[✗] Failed:', error instanceof Error ? error.message : error);

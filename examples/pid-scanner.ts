@@ -34,7 +34,7 @@
  * ============================================================
  */
 
-import { OBD2Client, listSerialPorts, getCommandByPid } from '../src/index';
+import { OBD2Client, getCommandByPid, listSerialPorts } from '../src/index';
 
 async function main(): Promise<void> {
   const port = process.argv[2];
@@ -90,7 +90,9 @@ async function runWithPort(port: string): Promise<void> {
     const command = getCommandByPid(`01${pidHex}`);
 
     if (data.response) {
-      console.log(`  [✓] PID 0x${pidHex} - ${command?.description || 'Unknown'} - Value: ${data.response.value}`);
+      console.log(
+        `  [✓] PID 0x${pidHex} - ${command?.description || 'Unknown'} - Value: ${data.response.value}`,
+      );
       foundPids.push({
         pid: data.pid,
         description: command?.description || 'Unknown',
@@ -131,7 +133,6 @@ async function runWithPort(port: string): Promise<void> {
 
     // Start scanning - progress will be shown via events
     await client.scanPids(0x01, 0x00, 0x50);
-
   } catch (error) {
     console.error('');
     console.error('[✗] Failed:', error instanceof Error ? error.message : error);

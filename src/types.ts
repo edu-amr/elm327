@@ -122,6 +122,7 @@ export interface DiagnosticResponse {
   pid?: number;
   success: boolean;
   negativeResponseCode?: number;
+  negativeResponseMessage?: string;
   value?: number | string;
   payload?: string;
   frame?: number;

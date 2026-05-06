@@ -134,7 +134,6 @@ async function runWithPort(port: string): Promise<void> {
     await new Promise(() => {
       // This promise never resolves - we wait for SIGINT
     });
-
   } catch (error) {
     console.error('');
     console.error('[✗] Failed:', error instanceof Error ? error.message : error);
@@ -149,7 +148,10 @@ async function runWithPort(port: string): Promise<void> {
  * or: PCI BYTE1 BYTE2 ... (without headers)
  */
 function parseCANFrame(raw: string): { canId: string; pci: string; data: string } | null {
-  const parts = raw.trim().split(/\s+/).filter(p => p.length > 0);
+  const parts = raw
+    .trim()
+    .split(/\s+/)
+    .filter((p) => p.length > 0);
   if (parts.length < 2) return null;
 
   // Check if first part looks like a CAN ID (3-4 hex chars)

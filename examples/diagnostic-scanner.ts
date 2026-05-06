@@ -2,7 +2,7 @@
 /**
  * OBD-II Diagnostic Scanner Example
  * Inspired by OpenXC's openxc-obd2scanner tool
- * 
+ *
  * This example demonstrates:
  * - Custom diagnostic requests
  * - PID scanning
@@ -10,7 +10,7 @@
  * - VIN retrieval
  */
 
-import { OBD2Client, DiagnosticMode, DiagnosticRequestBuilder } from '../src/index';
+import { DiagnosticMode, DiagnosticRequestBuilder, OBD2Client } from '../src/index';
 
 async function main() {
   const client = new OBD2Client({
@@ -46,7 +46,7 @@ async function main() {
 
     // Example: Use DiagnosticRequestBuilder (similar to OpenXC)
     console.log('\n--- Custom Diagnostic Request ---');
-    const rpmRequest = DiagnosticRequestBuilder.mode1Request(0x0C, 'ENGINE_RPM');
+    const rpmRequest = DiagnosticRequestBuilder.mode1Request(0x0c, 'ENGINE_RPM');
     console.log('Built command:', rpmRequest.build());
 
     // Scan all PIDs (like openxc-obd2scanner)
@@ -59,7 +59,7 @@ async function main() {
         if (response) {
           console.log(`PID 0x${pid.toString(16).padStart(2, '0')}: Responded`);
         }
-      }
+      },
     );
 
     console.log(`\nFound ${scanResults.size} responding PIDs in scan`);
@@ -85,11 +85,10 @@ async function main() {
     console.log('\n--- Raw Diagnostic Request ---');
     const response = await client.sendDiagnosticRequest({
       mode: DiagnosticMode.CURRENT_DATA,
-      pid: 0x0D, // Vehicle speed
+      pid: 0x0d, // Vehicle speed
       name: 'SPEED_TEST',
     });
     console.log('Speed response:', response);
-
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
   } finally {

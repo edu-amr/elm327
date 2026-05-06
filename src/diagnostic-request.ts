@@ -1,5 +1,4 @@
 import { DiagnosticMode, DiagnosticRequestConfig, DiagnosticResponse } from './types';
-import { ProtocolError } from './errors';
 
 /**
  * Re-export types for convenience
@@ -106,8 +105,33 @@ export class DiagnosticResponseParser {
   /**
    * Parses a typical ELM327 response line
    * Example: "41 0C 1A F8" (RPM response)
+   *
+   * Handles negative responses (7F) and extracts NRC codes.
+   * For multiple ECUs, parses each line separately.
    */
   static parse(rawResponse: string, request: DiagnosticRequestConfig): DiagnosticResponse {
+    // Split by lines to handle multiple ECU responses
+    const lines = rawResponse.split(/[\r\n]+/).filter((l) => l.trim().length > 0);
+
+    // If multiple lines, parse each and return the first successful one
+    // or combine them appropriately
+    if (lines.length > 1) {
+      const responses = lines.map((line) => this.parseLine(line.trim(), request));
+      // Return the first successful response, or the first one if all failed
+      const successful = responses.find((r) => r.success);
+      return successful || responses[0]!;
+    }
+
+    return this.parseLine(rawResponse, request);
+  }
+
+  /**
+   * Parses a single response line
+   */
+  private static parseLine(
+    rawResponse: string,
+    request: DiagnosticRequestConfig,
+  ): DiagnosticResponse {
     const cleanResponse = rawResponse.replace(/[\r\n>]/g, '').trim();
     const bytes = cleanResponse.split(/\s+/).filter((b) => b.length > 0);
 
@@ -130,8 +154,14 @@ export class DiagnosticResponseParser {
       // Negative response: 7F XX YY (where YY is NRC)
       if (responseMode === 0x7f) {
         response.success = false;
+        // Extract NRC (Negative Response Code)
+        if (bytes.length > 1) {
+          response.pid = parseInt(bytes[1]!, 16); // Requested PID
+        }
         if (bytes.length > 2) {
           response.negativeResponseCode = parseInt(bytes[2]!, 16);
+          // Map common NRCs to human-readable messages
+          response.negativeResponseMessage = this.getNRCMessage(response.negativeResponseCode);
         }
         return response;
       }
@@ -152,6 +182,38 @@ export class DiagnosticResponseParser {
     }
 
     return response;
+  }
+
+  /**
+   * Maps NRC (Negative Response Code) to human-readable message
+   */
+  private static getNRCMessage(nrc: number): string {
+    const nrcMap: Record<number, string> = {
+      0x10: 'General reject',
+      0x11: 'Service not supported',
+      0x12: 'Sub-function not supported',
+      0x13: 'Incorrect message length or invalid format',
+      0x14: 'Response too long',
+      0x21: 'Busy - repeat request',
+      0x22: 'Conditions not correct or request sequence error',
+      0x23: 'Routine not complete or service in progress',
+      0x24: 'Request sequence error',
+      0x25: 'No response from sub-net component',
+      0x26: 'Failure prevents execution of requested action',
+      0x31: 'Request out of range',
+      0x33: 'Security access denied',
+      0x35: 'Invalid key',
+      0x36: 'Exceed number of attempts',
+      0x37: 'Required time delay not expired',
+      0x70: 'Upload/download not accepted',
+      0x71: 'Transfer data suspended',
+      0x72: 'General programming failure',
+      0x73: 'Wrong block sequence counter',
+      0x78: 'Request correctly received but response is pending',
+      0x7e: 'Sub-function not supported in active session',
+      0x7f: 'Service not supported in active session',
+    };
+    return nrcMap[nrc] || `Unknown NRC: 0x${nrc.toString(16).toUpperCase()}`;
   }
 
   /**

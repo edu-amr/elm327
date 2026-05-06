@@ -97,11 +97,39 @@ export class ResponseMatcher extends EventEmitter {
       request.buffer.push(data);
 
       // Check if this looks like a complete response (has '>' prompt)
-      if (data.includes('>')) {
+      // Also check if we have a complete response with proper mode byte
+      const fullData = request.buffer.join('\n');
+      if (data.includes('>') && this.isCompleteResponse(fullData, request)) {
         const fullResponse = request.buffer.join('\n');
         this.resolveRequest(firstId, fullResponse);
       }
     }
+  }
+
+  /**
+   * Checks if the response appears to be complete.
+   * Looks for the '>' prompt and valid response pattern.
+   */
+  private isCompleteResponse(data: string, request: PendingRequest): boolean {
+    // Must have the '>' prompt
+    if (!data.includes('>')) return false;
+
+    // For ELM327, after '>' appears, the response is complete
+    // Additional check: if we expect a specific response pattern, verify it
+    const clean = data.replace(/[\r\n>]/g, '').trim();
+    if (clean.length === 0) return true; // Empty response with '>' is complete
+
+    // Check for valid response (starts with 4x for successful, 7F for negative)
+    const bytes = clean.split(/\s+/).filter((b) => b.length > 0);
+    if (bytes.length > 0) {
+      const firstByte = parseInt(bytes[0]!, 16);
+      // Valid response modes: 0x40-0x4F (success) or 0x7F (negative)
+      if ((firstByte >= 0x40 && firstByte <= 0x4f) || firstByte === 0x7f) {
+        return true;
+      }
+    }
+
+    return true; // Default: assume complete if '>' is present
   }
 
   /**
@@ -143,6 +171,20 @@ export class ResponseMatcher extends EventEmitter {
       clearTimeout(request.timer);
       request.reject(new ProtocolError(`Request cancelled: ${request.command}`));
       this.pendingRequests.delete(id);
+    }
+  }
+
+  /**
+   * Clears the buffer of the first pending request.
+   * Call this before sending a new command to avoid residual data.
+   */
+  clearBuffer(): void {
+    const firstId = this.pendingRequests.keys().next().value;
+    if (firstId) {
+      const request = this.pendingRequests.get(firstId);
+      if (request) {
+        request.buffer = [];
+      }
     }
   }
 }

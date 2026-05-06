@@ -179,7 +179,9 @@ export class BluetoothConnection extends OBD2Connection {
             const writeChar = uuids.writeCharacteristic;
             // Use writeCharacteristic if different from notifyCharacteristic
             if (writeChar !== uuids.notifyCharacteristic) {
-              return service.getCharacteristic(writeChar).then((wc: any) => wc.writeValue(encoder.encode(data)));
+              return service
+                .getCharacteristic(writeChar)
+                .then((wc: any) => wc.writeValue(encoder.encode(data)));
             }
             return characteristic.writeValue(encoder.encode(data));
           },

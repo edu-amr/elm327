@@ -77,7 +77,7 @@ export abstract class OBD2Connection extends EventEmitter {
    * Similar to OpenXC's complex_request pattern.
    * Uses a mutex to prevent parallel commands from corrupting responses.
    */
-  async sendCommand(command: string): Promise<string> {
+  async sendCommand(command: string, customTimeout?: number): Promise<string> {
     if (!this.isConnectionOpen()) {
       throw new ConnectionError('Not connected to adapter');
     }
@@ -93,7 +93,11 @@ export abstract class OBD2Connection extends EventEmitter {
       // Wait for previous command to complete
       await previousLock;
 
-      const { promise } = this.responseMatcher.addRequest(command, this.timeout);
+      // Clear buffer before sending new command to avoid residual data
+      this.responseMatcher.clearBuffer();
+
+      const timeout = customTimeout || this.timeout;
+      const { promise } = this.responseMatcher.addRequest(command, timeout);
 
       try {
         await this.sendRaw(command);

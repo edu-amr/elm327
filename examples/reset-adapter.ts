@@ -144,11 +144,12 @@ async function runWithPort(port: string): Promise<void> {
       } catch {
         console.log(`  Engine Load:         Not available`);
       }
-
     } catch (resetError) {
-      console.error('[✗] Reset failed:', resetError instanceof Error ? resetError.message : resetError);
+      console.error(
+        '[✗] Reset failed:',
+        resetError instanceof Error ? resetError.message : resetError,
+      );
     }
-
   } catch (error) {
     console.error('');
     console.error('[✗] Failed:', error instanceof Error ? error.message : error);

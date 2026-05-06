@@ -76,7 +76,7 @@ async function runWithPort(port: string, compatMode: string): Promise<void> {
     port: port,
     baudRate: 38400,
     timeout: 10000, // Longer timeout for clones
-    cloneCompatibility: compatMode,
+    cloneCompatibility: compatMode as 'auto' | 'strict' | 'lenient' | 'minimal',
   };
 
   const client = new OBD2Client(config);
@@ -132,7 +132,6 @@ async function runWithPort(port: string, compatMode: string): Promise<void> {
 
     console.log('');
     console.log('[✓] Test complete');
-
   } catch (error) {
     console.error('');
     console.error('[✗] Failed:', error instanceof Error ? error.message : error);

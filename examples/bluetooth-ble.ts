@@ -107,7 +107,6 @@ export async function runBluetoothExample(): Promise<void> {
     } catch {
       console.log(`  Coolant Temperature: Not available`);
     }
-
   } catch (error) {
     console.error('');
     console.error('[✗] Failed:', error instanceof Error ? error.message : error);

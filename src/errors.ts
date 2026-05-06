@@ -1,6 +1,6 @@
 export class OBD2Error extends Error {
   public code?: string;
-  
+
   constructor(message: string, code?: string) {
     super(message);
     this.name = 'OBD2Error';

@@ -206,7 +206,7 @@ export const OBD2_COMMANDS: Record<string, OBD2Command> = {
     decoder: (data: string) => {
       const bytes = extractDataBytes(data, '011C');
       if (bytes.length === 0) return 'Unknown';
-      
+
       const byte = parseInt(bytes[0]!, 16);
       const standards: string[] = [];
       if ((byte & 0x01) !== 0) standards.push('OBD-II');
@@ -217,7 +217,7 @@ export const OBD2_COMMANDS: Record<string, OBD2Command> = {
       if ((byte & 0x20) !== 0) standards.push('EOBD');
       if ((byte & 0x40) !== 0) standards.push('EOBD+');
       if ((byte & 0x80) !== 0) standards.push('JOBD');
-      
+
       return standards.length > 0 ? standards.join(', ') : 'None';
     },
   },
@@ -325,7 +325,7 @@ export const OBD2_COMMANDS: Record<string, OBD2Command> = {
     description: 'O2 Sensor 1 Short Term Fuel Trim',
     decoder: (data: string) => {
       const bytes = extractDataBytes(data, '011B');
-      return bytes.length >= 1 ? (parseInt(bytes[0]!, 16) - 128) * 100 / 128 : 0;
+      return bytes.length >= 1 ? ((parseInt(bytes[0]!, 16) - 128) * 100) / 128 : 0;
     },
     unit: '%',
   },

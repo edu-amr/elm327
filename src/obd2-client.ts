@@ -75,20 +75,32 @@ export class OBD2Client extends EventEmitter {
         this.emit('disconnected');
         if (this.autoReconnect && !this._manualDisconnect && !this.reconnectTimer) {
           this.emit('reconnecting');
-          this.reconnectTimer = setTimeout(async () => {
+          // Exponential backoff: 1s, 2s, 4s, 8s... up to 30s
+          const baseDelay = 1000;
+          const maxDelay = 30000;
+          let attempt = 0;
+
+          const attemptReconnect = async () => {
             try {
               await this.connect();
               this.reconnectTimer = undefined;
               this._manualDisconnect = false;
+              attempt = 0; // Reset on success
               this.emit('reconnected');
             } catch {
+              attempt++;
+              const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
               this.reconnectTimer = setTimeout(() => {
                 this.reconnectTimer = undefined;
-                // Retry connect
-                this.connect().catch(() => {});
-              }, 5000);
+                attemptReconnect();
+              }, delay);
             }
-          }, 1000);
+          };
+
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = undefined;
+            attemptReconnect();
+          }, baseDelay);
         }
         this._manualDisconnect = false;
       });
@@ -120,7 +132,10 @@ export class OBD2Client extends EventEmitter {
    */
   addPoller(commandName: string): void {
     if (!this.pollers.has(commandName)) {
-      this.pollers.set(commandName, { interval: undefined as any, intervalMs: this.pollIntervalMs });
+      this.pollers.set(commandName, {
+        interval: undefined as any,
+        intervalMs: this.pollIntervalMs,
+      });
     }
   }
 
@@ -141,7 +156,7 @@ export class OBD2Client extends EventEmitter {
    */
   startPolling(intervalMs?: number): void {
     const interval = intervalMs || this.pollIntervalMs;
-    
+
     // Clear existing global poll
     if (this.globalPollInterval) {
       clearInterval(this.globalPollInterval);
@@ -160,7 +175,7 @@ export class OBD2Client extends EventEmitter {
 
       try {
         const results = await this.queryMultiple(commands);
-        
+
         for (const r of results) {
           if ('error' in r) {
             this.emit('pollError', r.command, r.error);
@@ -168,7 +183,7 @@ export class OBD2Client extends EventEmitter {
             this.emit('pollData', r);
           }
         }
-        
+
         this.emit('pollComplete', results);
       } catch (error) {
         this.emit('pollError', 'POLL_ERROR', error instanceof Error ? error.message : error);
@@ -334,31 +349,6 @@ export class OBD2Client extends EventEmitter {
       await this.delay(100);
     }
     return results;
-  }
-
-  /**
-   * Returns a list of PIDs supported by the vehicle.
-   */
-  async getSupportedPids(): Promise<string[]> {
-    if (!this.connection) {
-      throw new ConnectionError('Not connected to OBD2 adapter');
-    }
-
-    const supportedPids: string[] = [];
-    const pidQueries = ['0100', '0120', '0140', '0160', '0180', '01A0', '01C0', '01E0'];
-
-    for (const pidQuery of pidQueries) {
-      try {
-        const response = await this.connection.sendCommand(pidQuery);
-        const inRange = this.parseSupportedPids(response, pidQuery);
-        supportedPids.push(...inRange);
-      } catch {
-        continue;
-      }
-      await this.delay(100);
-    }
-
-    return supportedPids;
   }
 
   /**
@@ -588,56 +578,6 @@ export class OBD2Client extends EventEmitter {
   }
 
   /**
-   * Gets freeze frame data for a specific PID (Mode 02).
-   * Similar to OpenXC's freeze frame support.
-   * Freeze frame captures snapshot data at the time a DTC was set.
-   */
-  async getFreezeFrame(pid: number): Promise<OBD2Response> {
-    if (!this.isInitialized || !this.connection) {
-      throw new ConnectionError('Adapter not initialized. Call connect() first.');
-    }
-
-    try {
-      const response = await this.sendDiagnosticRequest({
-        mode: DiagnosticMode.FREEZE_FRAME,
-        pid,
-        name: `FREEZE_${pid.toString(16).toUpperCase()}`,
-      });
-
-      return {
-        command: `FREEZE_${pid.toString(16).toUpperCase()}`,
-        value: response.payload || 'No data',
-        unit: undefined,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new ProtocolError(`Failed to get freeze frame for PID 0x${pid.toString(16)}: ${message}`);
-    }
-  }
-
-  /**
-   * Gets all available freeze frame data (scans PIDs 0x00-0x20 in Mode 02).
-   */
-  async getAllFreezeFrames(): Promise<Array<OBD2Response>> {
-    const results: Array<OBD2Response> = [];
-    
-    for (let pid = 0x00; pid <= 0x20; pid++) {
-      try {
-        const response = await this.getFreezeFrame(pid);
-        if (response.value !== 'No data') {
-          results.push(response);
-        }
-      } catch {
-        // PID not supported in freeze frame, continue
-      }
-      await this.delay(50);
-    }
-
-    return results;
-  }
-
-  /**
    * Scans all OBD-II PIDs to see which ones respond.
    * Similar to OpenXC's openxc-obd2scanner tool.
    *
@@ -718,6 +658,136 @@ export class OBD2Client extends EventEmitter {
       const message = error instanceof Error ? error.message : String(error);
       throw new ProtocolError(`Failed to get DTCs: ${message}`);
     }
+  }
+
+  /**
+   * Gets freeze frame data for a specific PID (Mode 02).
+   * Freeze frame captures data at the moment a fault occurred.
+   *
+   * @param pid - The PID to get freeze frame data for (e.g., 0x0C for RPM)
+   * @returns The freeze frame value, or null if not available
+   */
+  async getFreezeFrame(pid: number): Promise<OBD2Response | null> {
+    if (!this.isInitialized || !this.connection) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+
+    try {
+      const response = await this.sendDiagnosticRequest({
+        mode: DiagnosticMode.FREEZE_FRAME,
+        pid,
+      });
+
+      if (!response.success || !response.payload) {
+        return null;
+      }
+
+      // Parse the response using the command's decoder if available
+      const pidHex = pid.toString(16).toUpperCase().padStart(2, '0');
+      const command = getCommandByPid(`02${pidHex}`); // Mode 02 + PID
+
+      let value: number | string | boolean = 0;
+      let unit = '';
+
+      if (command && command.decoder) {
+        // Use the command's decoder
+        const decoded = command.decoder(response.payload);
+        value = decoded as number | string | boolean;
+        unit = command.unit || '';
+      } else {
+        // Fallback: return raw payload
+        value = response.payload;
+      }
+
+      return {
+        command: `FREEZE_FRAME_${pidHex}`,
+        value,
+        unit,
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      this.emit('debug', {
+        message: `Freeze frame for PID 0x${pid.toString(16)} failed: ${error}`,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Gets all available freeze frame data.
+   * Scans PIDs 0x00-0x4F in Mode 02.
+   *
+   * @returns Array of freeze frame responses
+   */
+  async getAllFreezeFrames(): Promise<OBD2Response[]> {
+    if (!this.isInitialized || !this.connection) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+
+    const results: OBD2Response[] = [];
+
+    // First, get supported PIDs in Mode 02 (PID 0x00)
+    try {
+      const supported = await this.sendDiagnosticRequest({
+        mode: DiagnosticMode.FREEZE_FRAME,
+        pid: 0x00,
+      });
+
+      if (supported.success && supported.payload) {
+        // Parse which PIDs are supported (Mode 02 uses "02" prefix)
+        const supportedPids = this.parseSupportedPids(supported.payload, '0200');
+
+        // Query each supported PID
+        for (const pidHex of supportedPids) {
+          const pid = parseInt(pidHex, 16);
+          const ff = await this.getFreezeFrame(pid);
+          if (ff) {
+            results.push(ff);
+          }
+        }
+      }
+    } catch (error) {
+      this.emit('debug', { message: `Failed to get all freeze frames: ${error}` });
+    }
+
+    return results;
+  }
+
+  /**
+   * Dynamically scans all supported PIDs (Mode 01).
+   * Recursively checks 0x00, 0x20, 0x40, 0x60, etc.
+   *
+   * @returns Array of supported PID numbers
+   */
+  async getSupportedPids(): Promise<number[]> {
+    const allSupported: number[] = [];
+
+    // Start with PID 0x00, then recursively check 0x20, 0x40, etc.
+    for (let basePid = 0x00; basePid <= 0xE0; basePid += 0x20) {
+      try {
+        const response = await this.sendDiagnosticRequest({
+          mode: DiagnosticMode.CURRENT_DATA,
+          pid: basePid,
+        });
+
+        if (response.success && response.payload) {
+          // Convert basePid number to hex string for parseSupportedPids
+          const baseQuery = `01${basePid.toString(16).toUpperCase().padStart(2, '0')}`;
+          const supported = this.parseSupportedPids(response.payload, baseQuery);
+          // Convert string PIDs to numbers
+          const pidNumbers = supported.map((p: string) => parseInt(p, 16));
+          allSupported.push(...pidNumbers);
+
+          // If no more PIDs in this range, stop
+          if (supported.length === 0) break;
+        }
+      } catch {
+        // Stop on first failure
+        break;
+      }
+    }
+
+    return allSupported.sort((a, b) => a - b);
   }
 
   /**

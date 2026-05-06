@@ -2,7 +2,7 @@
 /**
  * ELM327 Advanced Usage Example
  * Demnstrates the OpenXC-inspired improvements
- * 
+ *
  * Features demonstrated:
  * - ResponseMatcher for request/response matching
  * - DiagnosticRequestBuilder for custom OBD requests
@@ -12,12 +12,10 @@
  * - VIN retrieval
  */
 
-import { 
-  OBD2Client, 
-  DiagnosticMode, 
+import {
+  DiagnosticMode,
   DiagnosticRequestBuilder,
   DiagnosticResponse,
-  ResponseMatcher,
   createOBD2Client,
 } from '../src/index';
 
@@ -60,15 +58,19 @@ async function main() {
     const supportedPids = await client.getSupportedPids();
     console.log(`   Found ${supportedPids.length} supported PIDs`);
     if (supportedPids.length > 0) {
-      console.log(`   PIDs: ${supportedPids.slice(0, 10).join(', ')}${supportedPids.length > 10 ? '...' : ''}`);
+      console.log(
+        `   PIDs: ${supportedPids.slice(0, 10).join(', ')}${supportedPids.length > 10 ? '...' : ''}`,
+      );
     }
     console.log();
 
     // Example: Using DiagnosticRequestBuilder (inspired by OpenXC)
     console.log('5. Custom Diagnostic Request (using DiagnosticRequestBuilder):');
-    const rpmRequest = DiagnosticRequestBuilder.mode1Request(0x0C, 'ENGINE_RPM');
+    const rpmRequest = DiagnosticRequestBuilder.mode1Request(0x0c, 'ENGINE_RPM');
     console.log(`   Built command: ${rpmRequest.build()}`);
-    console.log(`   Config: Mode=${rpmRequest.getConfig().mode}, PID=${rpmRequest.getConfig().pid}\n`);
+    console.log(
+      `   Config: Mode=${rpmRequest.getConfig().mode}, PID=${rpmRequest.getConfig().pid}\n`,
+    );
 
     // Query some common PIDs
     console.log('6. Querying Common OBD-II PIDs:');
@@ -95,7 +97,7 @@ async function main() {
           respondedCount++;
           process.stdout.write('.');
         }
-      }
+      },
     );
     console.log(`\n   Found ${respondedCount} responding PIDs in range\n`);
 
@@ -119,11 +121,13 @@ async function main() {
     try {
       const response: DiagnosticResponse = await client.sendDiagnosticRequest({
         mode: DiagnosticMode.CURRENT_DATA,
-        pid: 0x0D, // Vehicle speed
+        pid: 0x0d, // Vehicle speed
         name: 'SPEED_TEST',
       });
       console.log(`   Response success: ${response.success}`);
-      console.log(`   Mode: 0x${response.mode !== undefined ? response.mode.toString(16) : 'unknown'}`);
+      console.log(
+        `   Mode: 0x${response.mode !== undefined ? response.mode.toString(16) : 'unknown'}`,
+      );
       if (response.payload) {
         console.log(`   Payload: ${response.payload}`);
       }
@@ -136,8 +140,7 @@ async function main() {
     console.log('10. ResponseMatcher Demo (advanced):');
     console.log('    The ResponseMatcher is now integrated into OBD2Connection');
     console.log('    It automatically matches responses to pending requests');
-    console.log('    Similar to OpenXC\'s ResponseReceiver pattern\n');
-
+    console.log("    Similar to OpenXC's ResponseReceiver pattern\n");
   } catch (error) {
     console.error('\nError:', error instanceof Error ? error.message : error);
   } finally {

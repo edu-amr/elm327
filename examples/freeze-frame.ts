@@ -70,9 +70,13 @@ async function main(): Promise<void> {
     // Get freeze frame data for Engine RPM (PID 0x0C)
     console.log('1. Freeze Frame for Engine RPM (PID 0x0C):');
     try {
-      const ffRpm = await client.getFreezeFrame(0x0C);
-      console.log(`   Value: ${ffRpm.value} ${ffRpm.unit || ''}`);
-      console.log(`   Timestamp: ${ffRpm.timestamp}`);
+      const ffRpm = await client.getFreezeFrame(0x0c);
+      if (ffRpm) {
+        console.log(`   Value: ${ffRpm.value} ${ffRpm.unit || ''}`);
+        console.log(`   Timestamp: ${ffRpm.timestamp}`);
+      } else {
+        console.log('   Not available or not supported');
+      }
     } catch {
       console.log('   Not available or not supported');
     }
@@ -81,8 +85,12 @@ async function main(): Promise<void> {
     // Get freeze frame data for Vehicle Speed (PID 0x0D)
     console.log('2. Freeze Frame for Vehicle Speed (PID 0x0D):');
     try {
-      const ffSpeed = await client.getFreezeFrame(0x0D);
-      console.log(`   Value: ${ffSpeed.value} ${ffSpeed.unit || ''}`);
+      const ffSpeed = await client.getFreezeFrame(0x0d);
+      if (ffSpeed) {
+        console.log(`   Value: ${ffSpeed.value} ${ffSpeed.unit || ''}`);
+      } else {
+        console.log('   Not available or not supported');
+      }
     } catch {
       console.log('   Not available or not supported');
     }
@@ -92,7 +100,11 @@ async function main(): Promise<void> {
     console.log('3. Freeze Frame for Coolant Temperature (PID 0x05):');
     try {
       const ffTemp = await client.getFreezeFrame(0x05);
-      console.log(`   Value: ${ffTemp.value} ${ffTemp.unit || ''}`);
+      if (ffTemp) {
+        console.log(`   Value: ${ffTemp.value} ${ffTemp.unit || ''}`);
+      } else {
+        console.log('   Not available or not supported');
+      }
     } catch {
       console.log('   Not available or not supported');
     }
@@ -114,7 +126,6 @@ async function main(): Promise<void> {
       console.log('   Freeze frame scan not supported');
     }
     console.log('');
-
   } catch (error) {
     console.error('');
     console.error('[✗] Failed:', error instanceof Error ? error.message : error);
