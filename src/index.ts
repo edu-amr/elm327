@@ -18,15 +18,11 @@ export type {
   OBD2Response,
 } from './types';
 
+// Erros
+export { ConnectionError, OBD2Error, ProtocolError, TimeoutError } from './errors';
+
 // Enums and error classes
-export {
-  ConnectionError,
-  DiagnosticMode,
-  OBD2Error,
-  OBD2Protocol,
-  ProtocolError,
-  TimeoutError,
-} from './types';
+export { DiagnosticMode, OBD2Protocol } from './types';
 
 // Diagnostic utilities
 export { DiagnosticRequestBuilder, DiagnosticResponseParser } from './diagnostic-request';

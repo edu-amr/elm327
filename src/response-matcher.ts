@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { ProtocolError, TimeoutError } from './types';
+import { ProtocolError, TimeoutError } from './errors';
 
 /**
  * Represents a pending request waiting for a response.

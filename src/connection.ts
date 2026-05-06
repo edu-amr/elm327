@@ -1,15 +1,11 @@
 import { EventEmitter } from 'events';
+import { ConnectionError, ProtocolError, TimeoutError } from './errors';
 import { ResponseMatcher } from './response-matcher';
 import {
   ConnectionConfig,
-  ConnectionError,
-  DiagnosticMode,
   DiagnosticRequestConfig,
   DiagnosticResponse,
-  MultiframeMessage,
   OBD2AdapterInfo,
-  ProtocolError,
-  TimeoutError,
 } from './types';
 
 /**
@@ -50,25 +46,25 @@ export abstract class OBD2Connection extends EventEmitter {
     const clean = response.trim().toUpperCase();
 
     if (clean.includes('UNABLE TO CONNECT')) {
-      throw new ConnectionError('Unable to connect to vehicle');
+      throw new ConnectionError(`Unable to connect to vehicle: ${clean}`);
     }
     if (clean.includes('NO DATA')) {
-      throw new ProtocolError('No data received from vehicle');
+      throw new ProtocolError(`No data received from vehicle: ${clean}`);
     }
     if (clean.includes('BUS INIT')) {
-      throw new ProtocolError('Bus initialization error');
+      throw new ProtocolError(`Bus initialization error: ${clean}`);
     }
     if (clean === '?') {
-      throw new ProtocolError('Unknown command or invalid response');
+      throw new ProtocolError(`Unknown command or invalid response: ${clean}`);
     }
     if (clean.includes('CAN ERROR')) {
-      throw new ProtocolError('CAN bus error');
+      throw new ProtocolError(`CAN bus error: ${clean}`);
     }
     if (clean.includes('STOPPED')) {
-      throw new ProtocolError('Communication stopped');
+      throw new ProtocolError(`Communication stopped: ${clean}`);
     }
     if (clean.includes('BUFFER FULL')) {
-      throw new ProtocolError('ELM327 buffer full');
+      throw new ProtocolError(`ELM327 buffer full: ${clean}`);
     }
     if (clean.includes('ERROR')) {
       throw new ProtocolError(`ELM327 error: ${clean}`);
@@ -203,24 +199,43 @@ export abstract class OBD2Connection extends EventEmitter {
       const bytes = clean.split(/\s+/).filter((b) => b.length > 0);
       if (bytes.length === 0) continue;
 
-      const firstByte = parseInt(bytes[0]!, 16);
+      // Determine if headers are present (ATH1) - first token might be CAN ID (3-4 hex chars)
+      let headerOffset = 0;
+      const canId = 0x7e8; // Default OBD-II response ID
+
+      // Check if first token looks like a CAN ID (not a PCI byte)
+      if (bytes.length > 0) {
+        const first = bytes[0]!;
+        if (first.length >= 3 && /^[0-9A-F]{3,4}$/.test(first)) {
+          // This is likely a CAN ID, skip it for PCI parsing
+          headerOffset = 1;
+        }
+      }
+
+      const pciByte = parseInt(bytes[headerOffset] || '0', 16);
 
       // ISO-TP First Frame (0x10-0x1F) or Consecutive Frame (0x20-0x2F)
-      if ((firstByte & 0xf0) === 0x10 || (firstByte & 0xf0) === 0x20) {
-        // Extract CAN ID from the response (assuming standard OBD-II response format)
-        // Typical format: CAN_ID MODE PID DATA... (e.g., "7E8 49 02 01 31 33...")
-        // For now, use a default ID for OBD-II responses
-        const canId = 0x7e8; // Standard OBD-II response ID
-
+      if ((pciByte & 0xf0) === 0x10 || (pciByte & 0xf0) === 0x20) {
         if (!this.multiframeMessages.has(canId)) {
-          this.multiframeMessages.set(
-            canId,
-            new MultiframeMessage(canId, DiagnosticMode.VEHICLE_INFO, 0x02),
-          );
+          // Create message without hardcoded mode/PID; will be extracted from data
+          this.multiframeMessages.set(canId, new MultiframeMessage(canId));
         }
 
         const mfMsg = this.multiframeMessages.get(canId)!;
         mfMsg.addFrame(clean);
+
+        // If this is the first frame, try to extract mode and PID from the data
+        if ((pciByte & 0xf0) === 0x10 && headerOffset + 4 < bytes.length) {
+          // Data starts after PCI and length bytes: bytes[headerOffset+2] is first data byte
+          const modeByte = parseInt(bytes[headerOffset + 2]!, 16);
+          const pidByte = parseInt(bytes[headerOffset + 3]!, 16);
+          if (!isNaN(modeByte)) {
+            mfMsg.mode = modeByte - 0x40; // Response mode = request mode + 0x40
+          }
+          if (!isNaN(pidByte)) {
+            mfMsg.pid = pidByte;
+          }
+        }
 
         if (mfMsg.isComplete) {
           // Multi-frame message complete, create combined response
@@ -308,9 +323,9 @@ export abstract class OBD2Connection extends EventEmitter {
       await this.delay(100);
 
       try {
-        await this.sendCommand('ATS0');
+        await this.sendCommand('ATS1');
       } catch (e) {
-        console.warn('ATS0 failed:', e instanceof Error ? e.message : e);
+        console.warn('ATS1 failed:', e instanceof Error ? e.message : e);
       }
       await this.delay(100);
 
@@ -326,6 +341,14 @@ export abstract class OBD2Connection extends EventEmitter {
         await this.sendCommand('ATAT1');
       } catch (e) {
         console.warn('ATAT1 failed:', e instanceof Error ? e.message : e);
+      }
+      await this.delay(100);
+
+      // Show headers (needed for ISO-TP multi-frame detection)
+      try {
+        await this.sendCommand('ATH1');
+      } catch (e) {
+        console.warn('ATH1 failed:', e instanceof Error ? e.message : e);
       }
       await this.delay(100);
 
@@ -369,5 +392,93 @@ export abstract class OBD2Connection extends EventEmitter {
 
   getConnectionStatus(): boolean {
     return this.isConnected && this.isConnectionOpen();
+  }
+}
+
+/**
+ * Multiframe message accumulator
+ * Similar to OpenXC's MultiframeDiagnosticMessage
+ * Used for ISO-TP multi-frame responses (like VIN)
+ */
+export class MultiframeMessage {
+  private frames: Map<number, string> = new Map();
+  private _totalFrames = -1;
+  private _isComplete = false;
+  public mode?: number;
+  public pid?: number;
+
+  constructor(
+    public readonly id: number,
+    mode?: number,
+    pid?: number,
+    public readonly bus?: number,
+  ) {
+    this.mode = mode;
+    this.pid = pid;
+  }
+
+  /**
+   * Adds a frame to the multiframe message
+   * For ISO-TP: first frame (10) has total frames, consecutive frames (21, 22, etc.)
+   */
+  addFrame(response: string): void {
+    const clean = response.replace(/[\r\n>]/g, '').trim();
+
+    // Parse ISO-TP header
+    const bytes = clean.split(/\s+/).filter((b) => b.length > 0);
+    if (bytes.length === 0) return;
+
+    const firstByte = parseInt(bytes[0]!, 16);
+
+    // First frame (0x10 = 16): 10 <total_len_high> <total_len_low> <data...>
+    if ((firstByte & 0xf0) === 0x10) {
+      const totalLen = ((firstByte & 0x0f) << 8) | parseInt(bytes[1]!, 16);
+      this._totalFrames = Math.ceil(totalLen / 7); // Approximate frames needed
+      this.frames.set(0, bytes.slice(2).join(''));
+    }
+    // Consecutive frame (0x21 = 33 and up): 21 <data...>, 22 <data...>, etc.
+    else if ((firstByte & 0xf0) === 0x20) {
+      const frameNum = (firstByte & 0x0f) - 1; // 1->0, 2->1, etc.
+      if (frameNum >= 0) {
+        this.frames.set(frameNum, bytes.slice(1).join(''));
+      }
+    }
+    // Single frame (0x0X): just data
+    else {
+      this.frames.set(0, bytes.slice(1).join(''));
+      this._isComplete = true;
+    }
+
+    // Check if complete
+    if (this._totalFrames > 0 && this.frames.size >= this._totalFrames) {
+      this._isComplete = true;
+    }
+  }
+
+  /**
+   * Gets the combined payload from all frames in correct order
+   */
+  getCombinedPayload(): string {
+    const sortedFrames: string[] = [];
+    const maxFrames = this._totalFrames > 0 ? this._totalFrames : this.frames.size;
+    for (let i = 0; i < maxFrames; i++) {
+      const frame = this.frames.get(i);
+      if (frame) sortedFrames.push(frame);
+    }
+    return sortedFrames.join('');
+  }
+
+  /**
+   * Checks if all frames have been received
+   */
+  get isComplete(): boolean {
+    return this._isComplete || (this._totalFrames > 0 && this.frames.size >= this._totalFrames);
+  }
+
+  /**
+   * Gets the total number of frames received
+   */
+  get frameCount(): number {
+    return this.frames.size;
   }
 }

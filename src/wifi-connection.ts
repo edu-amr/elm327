@@ -1,6 +1,7 @@
 import net from 'node:net';
 import { OBD2Connection } from './connection';
-import { ConnectionConfig, ConnectionError } from './types';
+import { ConnectionError } from './errors';
+import { ConnectionConfig } from './types';
 
 /**
  * WiFi (TCP/IP) connection to an ELM327 adapter.

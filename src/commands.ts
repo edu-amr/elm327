@@ -38,16 +38,49 @@ export const OBD2_COMMANDS: Record<string, OBD2Command> = {
     name: 'PIDS_00',
     pid: '0100',
     description: 'Supported PIDs (00-20)',
-    decoder: (data: string) => (data.length >= 4 ? data.substring(4) : data),
-    unit: 'BIT',
+    decoder: (data: string) => {
+      const clean = data.replace(/[\s\r\n>]/g, '').toUpperCase();
+      // Skip mode+pid prefix (4100) and extract 4 bytes (8 chars)
+      const idx = clean.indexOf('4100');
+      const hex = idx >= 0 ? clean.substring(idx + 4, idx + 12) : clean.substring(0, 8);
+      if (hex.length < 8) return [];
+      const supported: string[] = [];
+      for (let i = 0; i < 4; i++) {
+        const byte = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+        for (let bit = 0; bit < 8; bit++) {
+          if ((byte & (1 << (7 - bit))) !== 0) {
+            const pidNum = i * 8 + bit + 1;
+            supported.push(pidNum.toString(16).toUpperCase().padStart(2, '0'));
+          }
+        }
+      }
+      return supported;
+    },
+    unit: 'PID',
   },
 
   DTC_STATUS: {
     name: 'DTC_STATUS',
     pid: '0101',
     description: 'DTC status since last clearing',
-    decoder: (data: string) => (data.length >= 4 ? data.substring(4) : data),
-    unit: 'BIT',
+    decoder: (data: string) => {
+      const clean = data.replace(/[\s\r\n>]/g, '').toUpperCase();
+      const idx = clean.indexOf('4101');
+      const hex = idx >= 0 ? clean.substring(idx + 4) : clean;
+      const bytes = hex.match(/.{1,2}/g) || [];
+      const statusByte = bytes.length > 0 ? parseInt(bytes[0]!, 16) : 0;
+      const dtcCount = bytes.length > 1 ? parseInt(bytes[1]!, 16) : 0;
+      return {
+        milOn: (statusByte & 0x80) !== 0,
+        dtcCount,
+        readinessFlags: {
+          misfire: (statusByte & 0x01) === 0,
+          fuelSystem: (statusByte & 0x02) === 0,
+          components: (statusByte & 0x04) === 0,
+        },
+      };
+    },
+    unit: 'STATUS',
   },
 
   ENGINE_LOAD: {

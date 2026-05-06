@@ -2,17 +2,16 @@ import { EventEmitter } from 'events';
 import { BluetoothConnection } from './bluetooth-connection';
 import { OBD2_COMMANDS, getCommandByPid } from './commands';
 import { OBD2Connection } from './connection';
+import { ConnectionError, ProtocolError } from './errors';
 import { SerialConnection } from './serial-connection';
 import {
   ConnectionConfig,
-  ConnectionError,
   DiagnosticMode,
   DiagnosticRequestConfig,
   DiagnosticResponse,
   OBD2AdapterInfo,
   OBD2Command,
   OBD2Response,
-  ProtocolError,
 } from './types';
 import { WifiConnection } from './wifi-connection';
 
@@ -26,8 +25,7 @@ export class OBD2Client extends EventEmitter {
   private isInitialized = false;
   private autoReconnect = false;
   private reconnectTimer?: NodeJS.Timeout;
-  private watchdogTimer?: NodeJS.Timeout;
-  private commandQueue: Array<{ command: string; resolve: (value: any) => void; reject: (error: any) => void }> = [];
+  private _manualDisconnect = false;
 
   constructor(private config: ConnectionConfig) {
     super();
@@ -38,30 +36,6 @@ export class OBD2Client extends EventEmitter {
    */
   setAutoReconnect(enabled: boolean): void {
     this.autoReconnect = enabled;
-  }
-
-  /**
-   * Starts a watchdog to detect stuck command queues.
-   */
-  private startWatchdog(): void {
-    this.stopWatchdog();
-    this.watchdogTimer = setInterval(() => {
-      if (this.commandQueue.length > 0) {
-        this.emit('warning', 'Command queue may be stuck');
-        // Clear old entries
-        this.commandQueue = [];
-      }
-    }, 30000); // Check every 30 seconds
-  }
-
-  /**
-   * Stops the watchdog timer.
-   */
-  private stopWatchdog(): void {
-    if (this.watchdogTimer) {
-      clearInterval(this.watchdogTimer);
-      this.watchdogTimer = undefined;
-    }
   }
 
   /**
@@ -79,7 +53,6 @@ export class OBD2Client extends EventEmitter {
         }
         this.connection = undefined;
         this.isInitialized = false;
-        this.stopWatchdog();
         // Small delay to ensure port is fully released
         await this.delay(500);
       }
@@ -97,12 +70,13 @@ export class OBD2Client extends EventEmitter {
       this.connection.on('connected', () => this.emit('connected'));
       this.connection.on('disconnected', () => {
         this.emit('disconnected');
-        if (this.autoReconnect && !this.reconnectTimer) {
+        if (this.autoReconnect && !this._manualDisconnect && !this.reconnectTimer) {
           this.emit('reconnecting');
           this.reconnectTimer = setTimeout(async () => {
             try {
               await this.connect();
               this.reconnectTimer = undefined;
+              this._manualDisconnect = false;
               this.emit('reconnected');
             } catch {
               this.reconnectTimer = setTimeout(() => {
@@ -113,6 +87,7 @@ export class OBD2Client extends EventEmitter {
             }
           }, 1000);
         }
+        this._manualDisconnect = false;
       });
       this.connection.on('error', (error) => this.emit('error', error));
       this.connection.on('data', (data) => this.emit('rawData', data));
@@ -121,7 +96,6 @@ export class OBD2Client extends EventEmitter {
 
       this.adapterInfo = await this.connection.initialize();
       this.isInitialized = true;
-      this.startWatchdog();
 
       this.emit('ready', this.adapterInfo);
     } catch (error) {
@@ -134,6 +108,11 @@ export class OBD2Client extends EventEmitter {
    * Disconnects from the OBD2 adapter.
    */
   async disconnect(): Promise<void> {
+    this._manualDisconnect = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
     if (this.connection) {
       await this.connection.disconnect();
       this.connection = undefined;

@@ -1,5 +1,6 @@
 import { OBD2Connection } from './connection';
-import { ConnectionConfig, ConnectionError } from './types';
+import { ConnectionError } from './errors';
+import { ConnectionConfig } from './types';
 
 /**
  * Bluetooth connection to an ELM327 adapter.
