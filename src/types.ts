@@ -84,7 +84,7 @@ export enum DiagnosticMode {
   /** Request vehicle information (mode 9) */
   VEHICLE_INFO = 0x09,
   /** Permanent DTCs (mode 0A) */
-  PERMANENT_DTC = 0x0A,
+  PERMANENT_DTC = 0x0a,
 }
 
 /**
@@ -149,21 +149,21 @@ export class MultiframeMessage {
    */
   addFrame(response: string): void {
     const clean = response.replace(/[\r\n>]/g, '').trim();
-    
+
     // Parse ISO-TP header
     const bytes = clean.split(/\s+/).filter((b) => b.length > 0);
     if (bytes.length === 0) return;
 
     const firstByte = parseInt(bytes[0]!, 16);
-    
+
     // First frame (0x10 = 16): 10 <total_len_high> <total_len_low> <data...>
-    if ((firstByte & 0xF0) === 0x10) {
-      this._totalFrames = Math.ceil((((firstByte & 0x0F) << 8) | parseInt(bytes[1]!, 16)) / 7); // Approximate
+    if ((firstByte & 0xf0) === 0x10) {
+      this._totalFrames = Math.ceil((((firstByte & 0x0f) << 8) | parseInt(bytes[1]!, 16)) / 7); // Approximate
       this.frames.set(0, bytes.slice(2).join(''));
     }
     // Consecutive frame (0x21 = 33 and up): 21 <data...>, 22 <data...>, etc.
-    else if ((firstByte & 0xF0) === 0x20) {
-      const frameNum = (firstByte & 0x0F) - 1; // 1->0, 2->1, etc.
+    else if ((firstByte & 0xf0) === 0x20) {
+      const frameNum = (firstByte & 0x0f) - 1; // 1->0, 2->1, etc.
       if (frameNum >= 0) {
         this.frames.set(frameNum, bytes.slice(1).join(''));
       }
@@ -173,7 +173,7 @@ export class MultiframeMessage {
       this.frames.set(0, bytes.slice(1).join(''));
       this._isComplete = true;
     }
-    
+
     // Check if complete (simplified check)
     if (this.frames.size >= this._totalFrames && this._totalFrames > 0) {
       this._isComplete = true;
