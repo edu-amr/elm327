@@ -554,6 +554,56 @@ export class OBD2Client extends EventEmitter {
   }
 
   /**
+   * Gets freeze frame data for a specific PID (Mode 02).
+   * Similar to OpenXC's freeze frame support.
+   * Freeze frame captures snapshot data at the time a DTC was set.
+   */
+  async getFreezeFrame(pid: number): Promise<OBD2Response> {
+    if (!this.isInitialized || !this.connection) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+
+    try {
+      const response = await this.sendDiagnosticRequest({
+        mode: DiagnosticMode.FREEZE_FRAME,
+        pid,
+        name: `FREEZE_${pid.toString(16).toUpperCase()}`,
+      });
+
+      return {
+        command: `FREEZE_${pid.toString(16).toUpperCase()}`,
+        value: response.payload || 'No data',
+        unit: undefined,
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ProtocolError(`Failed to get freeze frame for PID 0x${pid.toString(16)}: ${message}`);
+    }
+  }
+
+  /**
+   * Gets all available freeze frame data (scans PIDs 0x00-0x20 in Mode 02).
+   */
+  async getAllFreezeFrames(): Promise<Array<OBD2Response>> {
+    const results: Array<OBD2Response> = [];
+    
+    for (let pid = 0x00; pid <= 0x20; pid++) {
+      try {
+        const response = await this.getFreezeFrame(pid);
+        if (response.value !== 'No data') {
+          results.push(response);
+        }
+      } catch {
+        // PID not supported in freeze frame, continue
+      }
+      await this.delay(50);
+    }
+
+    return results;
+  }
+
+  /**
    * Scans all OBD-II PIDs to see which ones respond.
    * Similar to OpenXC's openxc-obd2scanner tool.
    */

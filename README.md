@@ -77,6 +77,58 @@ const vinRequest = DiagnosticRequestBuilder.vinRequest();
 const response = await client.sendDiagnosticRequest(vinRequest.getConfig());
 ```
 
+### Freeze Frame Data (Mode 02)
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client(config);
+await client.connect();
+
+// Get freeze frame data for a specific PID (e.g., Engine RPM)
+const ffRpm = await client.getFreezeFrame(0x0C);
+console.log(`Freeze Frame RPM: ${ffRpm.value}`);
+
+// Get all available freeze frame data
+const allFF = await client.getAllFreezeFrames();
+console.log(`Found ${allFF.length} freeze frame entries`);
+```
+
+### Automatic Polling*
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client(config);
+await client.connect();
+
+// Add commands to polling list
+client.addPoller('ENGINE_RPM');
+client.addPoller('VEHICLE_SPEED');
+client.addPoller('COOLANT_TEMP');
+
+// Set polling interval (default: 1000ms)
+client.setPollInterval(2000);
+
+// Start automatic polling
+client.startPolling();
+
+// Listen for poll data
+client.on('pollData', (response) => {
+  console.log(`${response.command}: ${response.value} ${response.unit || ''}`);
+});
+
+client.on('pollError', (command, error) => {
+  console.error(`Poll error for ${command}: ${error}`);
+});
+
+// Stop polling when done:
+// client.stopPolling();
+
+// Remove specific command from polling:
+// client.removePoller('ENGINE_RPM');
+```
+
 ## Troubleshooting
 
 ### Common Issues
