@@ -22,6 +22,7 @@ export abstract class OBD2Connection extends EventEmitter {
   protected responseMatcher: ResponseMatcher;
   protected multiframeMessages: Map<number, MultiframeMessage> = new Map();
   protected commandLock: Promise<void> = Promise.resolve();
+  protected monitorMode = false;
 
   constructor(protected config: ConnectionConfig) {
     super();
@@ -186,9 +187,22 @@ export abstract class OBD2Connection extends EventEmitter {
    * Handles incoming data and routes to ResponseMatcher.
    * Should be called by subclasses when data is received.
    * Handles multi-frame ISO-TP messages (like VIN).
+   * In monitor mode, emits 'canData' events for all received frames.
    */
   protected handleIncomingData(data: string): void {
-    // Check for ISO-TP multi-frame messages
+    // In monitor mode, emit all data as canData events
+    if (this.monitorMode) {
+      const lines = data.split(/[\r\n]+/).filter((l) => l.trim().length > 0);
+      for (const line of lines) {
+        const clean = line.trim();
+        if (clean && clean !== '>' && !clean.includes('ATMA')) {
+          this.emit('canData', clean);
+        }
+      }
+      return;
+    }
+
+    // Normal mode - check for ISO-TP multi-frame messages
     const lines = data.split(/[\r\n]+/).filter((l) => l.trim().length > 0);
 
     for (const line of lines) {
@@ -437,6 +451,80 @@ export abstract class OBD2Connection extends EventEmitter {
 
   getConnectionStatus(): boolean {
     return this.isConnected && this.isConnectionOpen();
+  }
+
+  /**
+   * Starts monitoring all CAN traffic (AT MA mode).
+   * In this mode, the adapter forwards all CAN frames without filtering.
+   * Use stopMonitor() to exit this mode.
+   * Data is emitted via the 'canData' event.
+   */
+  async startMonitor(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+
+    try {
+      // Exit any existing monitor mode first
+      await this.sendRaw(String.fromCharCode(0x1b));
+      await this.delay(100);
+
+      // Enable headers to see CAN IDs
+      await this.sendCommand('ATH1');
+      await this.delay(100);
+
+      // Set monitor mode flag BEFORE sending ATMA
+      this.monitorMode = true;
+
+      // Start monitoring all traffic (AT MA)
+      // This command doesn't return until we send an Escape
+      await this.sendRaw('ATMA');
+    } catch (error) {
+      // ATMA doesn't return normally - this is expected
+      this.emit('debug', { message: 'ATMA initiated - monitoring started' });
+    }
+  }
+
+  /**
+   * Stops CAN monitoring mode.
+   * Sends AT command to exit monitor mode.
+   */
+  async stopMonitor(): Promise<void> {
+    this.monitorMode = false;
+    try {
+      // Send Escape (0x1B) to exit monitor mode
+      await this.sendRaw(String.fromCharCode(0x1b));
+      await this.delay(500);
+      // Try to get a response to confirm we're out of monitor mode
+      await this.sendCommand('AT');
+    } catch {
+      // Ignore errors when stopping monitor
+    }
+  }
+
+  /**
+   * Monitor mode with callback (AT MP - Monitor with specific PID filter).
+   * Monitors only frames matching the specified CAN ID pattern.
+   */
+  async startMonitorWithFilter(canId: string): Promise<void> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+
+    try {
+      // Set the monitor filter
+      await this.sendCommand(`AT MP ${canId}`);
+      await this.delay(100);
+
+      // Enable headers
+      await this.sendCommand('ATH1');
+      await this.delay(100);
+
+      // Start monitoring (AT MA)
+      await this.sendRaw('ATMA');
+    } catch (error) {
+      this.emit('debug', { message: 'ATMP + ATMA initiated' });
+    }
   }
 }
 

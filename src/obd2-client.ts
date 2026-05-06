@@ -758,6 +758,67 @@ export class OBD2Client extends EventEmitter {
   }
 
   /**
+   * Starts CAN bus monitoring (AT MA - Monitor All).
+   * Listens to all CAN traffic without sending requests.
+   * Data is emitted via the 'canData' event.
+   * Use stopCANMonitor() to exit monitor mode.
+   *
+   * @example
+   * client.on('canData', (data) => {
+   *   console.log('CAN Frame:', data);
+   * });
+   * await client.startCANMonitor();
+   */
+  async startCANMonitor(): Promise<void> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+    if (!this.connection) {
+      throw new ConnectionError('Not connected to OBD2 adapter');
+    }
+
+    // Forward canData events from connection
+    this.connection.on('canData', (data: string) => {
+      this.emit('canData', data);
+    });
+
+    await this.connection.startMonitor();
+  }
+
+  /**
+   * Starts CAN monitoring with a specific CAN ID filter (AT MP + AT MA).
+   * Only frames matching the specified CAN ID will be received.
+   *
+   * @param canId - CAN ID to filter (e.g., '7E8', '7DF')
+   */
+  async startCANMonitorWithFilter(canId: string): Promise<void> {
+    if (!this.isInitialized) {
+      throw new ConnectionError('Adapter not initialized. Call connect() first.');
+    }
+    if (!this.connection) {
+      throw new ConnectionError('Not connected to OBD2 adapter');
+    }
+
+    // Forward canData events from connection
+    this.connection.on('canData', (data: string) => {
+      this.emit('canData', data);
+    });
+
+    await this.connection.startMonitorWithFilter(canId);
+  }
+
+  /**
+   * Stops CAN monitoring mode.
+   * Sends escape command to exit AT MA mode.
+   */
+  async stopCANMonitor(): Promise<void> {
+    if (!this.connection) {
+      return;
+    }
+    await this.connection.stopMonitor();
+  }
+
+  /**
    * Clean response helper.
    */
   private cleanResponse(response: string): string {

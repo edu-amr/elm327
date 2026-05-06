@@ -120,6 +120,34 @@ const vin = await client.getVIN();
 console.log(`VIN: ${vin}`);
 ```
 
+### CAN Bus Monitoring (AT MA / AT MP)
+
+Monitor all CAN bus traffic without sending requests. Useful for capturing proprietary data or reverse engineering.
+
+```typescript
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client({
+  type: 'serial',
+  port: '/dev/ttyUSB0',
+});
+
+await client.connect();
+
+// Listen for CAN frames
+client.on('canData', (data) => {
+  console.log('CAN Frame:', data);
+});
+
+// Start monitoring all CAN traffic
+await client.startCANMonitor();
+
+// Or monitor with specific CAN ID filter
+// await client.startCANMonitorWithFilter('7E8');
+
+// To stop: await client.stopCANMonitor();
+```
+
 ### Diagnostic Request Builder (OpenXC-inspired)
 
 ```typescript
@@ -273,6 +301,9 @@ npx ts-node examples/monitoring.ts /dev/ttyUSB0
 
 # Flow Control example (for VIN/multiframe):
 npx ts-node examples/flow-control.ts /dev/ttyUSB0
+
+# CAN Bus Monitor (sniff all CAN traffic):
+npx ts-node examples/can-monitor.ts /dev/ttyUSB0
 
 # WiFi examples:
 npx ts-node examples/wifi-usage.ts
