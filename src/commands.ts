@@ -202,23 +202,132 @@ export const OBD2_COMMANDS: Record<string, OBD2Command> = {
   OBD_STANDARDS: {
     name: 'OBD_STANDARDS',
     pid: '011C',
-    description: 'OBD standards the vehicle conforms to',
+    description: 'OBD standards compliance',
     decoder: (data: string) => {
-      const standards: Record<number, string> = {
-        1: 'OBD-II (CARB)',
-        2: 'OBD (EPA)',
-        3: 'OBD + OBD-II',
-        4: 'OBD-I',
-        5: 'Not OBD compliant',
-        6: 'EOBD (Europe)',
-        7: 'EOBD + OBD-II',
-        10: 'JOBD (Japan)',
-      };
       const bytes = extractDataBytes(data, '011C');
-      const value = bytes.length >= 1 ? hexToDec(bytes[0]!) : 0;
-      return standards[value] || `Unknown (${value})`;
+      if (bytes.length === 0) return 'Unknown';
+      
+      const byte = parseInt(bytes[0]!, 16);
+      const standards: string[] = [];
+      if ((byte & 0x01) !== 0) standards.push('OBD-II');
+      if ((byte & 0x02) !== 0) standards.push('OBD');
+      if ((byte & 0x04) !== 0) standards.push('OBD-II');
+      if ((byte & 0x08) !== 0) standards.push('OBD-I');
+      if ((byte & 0x10) !== 0) standards.push('Non-OBD');
+      if ((byte & 0x20) !== 0) standards.push('EOBD');
+      if ((byte & 0x40) !== 0) standards.push('EOBD+');
+      if ((byte & 0x80) !== 0) standards.push('JOBD');
+      
+      return standards.length > 0 ? standards.join(', ') : 'None';
     },
-    unit: 'STRING',
+  },
+
+  // Oxygen (Lambda) Sensors - Mode 05 (O2 Test Results)
+  O2S1_WR: {
+    name: 'O2S1_WR',
+    pid: '0113',
+    description: 'O2 Sensor 1 Wide Range Equivalent Ratio',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '0113');
+      if (bytes.length >= 2) {
+        const value = (parseInt(bytes[0]!, 16) * 256 + parseInt(bytes[1]!, 16)) / 32768;
+        return value.toFixed(2);
+      }
+      return 0;
+    },
+    unit: 'λ',
+  },
+  O2S2_WR: {
+    name: 'O2S2_WR',
+    pid: '0114',
+    description: 'O2 Sensor 2 Wide Range Equivalent Ratio',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '0114');
+      if (bytes.length >= 2) {
+        const value = (parseInt(bytes[0]!, 16) * 256 + parseInt(bytes[1]!, 16)) / 32768;
+        return value.toFixed(2);
+      }
+      return 0;
+    },
+    unit: 'λ',
+  },
+  O2S3_WR: {
+    name: 'O2S3_WR',
+    pid: '0115',
+    description: 'O2 Sensor 3 Wide Range Equivalent Ratio',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '0115');
+      if (bytes.length >= 2) {
+        const value = (parseInt(bytes[0]!, 16) * 256 + parseInt(bytes[1]!, 16)) / 32768;
+        return value.toFixed(2);
+      }
+      return 0;
+    },
+    unit: 'λ',
+  },
+  O2S4_WR: {
+    name: 'O2S4_WR',
+    pid: '0116',
+    description: 'O2 Sensor 4 Wide Range Equivalent Ratio',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '0116');
+      if (bytes.length >= 2) {
+        const value = (parseInt(bytes[0]!, 16) * 256 + parseInt(bytes[1]!, 16)) / 32768;
+        return value.toFixed(2);
+      }
+      return 0;
+    },
+    unit: 'λ',
+  },
+  O2S1_V: {
+    name: 'O2S1_V',
+    pid: '0117',
+    description: 'O2 Sensor 1 Voltage',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '0117');
+      return bytes.length >= 1 ? parseInt(bytes[0]!, 16) * 0.005 : 0;
+    },
+    unit: 'V',
+  },
+  O2S2_V: {
+    name: 'O2S2_V',
+    pid: '0118',
+    description: 'O2 Sensor 2 Voltage',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '0118');
+      return bytes.length >= 1 ? parseInt(bytes[0]!, 16) * 0.005 : 0;
+    },
+    unit: 'V',
+  },
+  O2S3_V: {
+    name: 'O2S3_V',
+    pid: '0119',
+    description: 'O2 Sensor 3 Voltage',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '0119');
+      return bytes.length >= 1 ? parseInt(bytes[0]!, 16) * 0.005 : 0;
+    },
+    unit: 'V',
+  },
+  O2S4_V: {
+    name: 'O2S4_V',
+    pid: '011A',
+    description: 'O2 Sensor 4 Voltage',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '011A');
+      return bytes.length >= 1 ? parseInt(bytes[0]!, 16) * 0.005 : 0;
+    },
+    unit: 'V',
+  },
+  O2S1_ST: {
+    name: 'O2S1_ST',
+    pid: '011B',
+    description: 'O2 Sensor 1 Short Term Fuel Trim',
+    decoder: (data: string) => {
+      const bytes = extractDataBytes(data, '011B');
+      return bytes.length >= 1 ? (parseInt(bytes[0]!, 16) - 128) * 100 / 128 : 0;
+    },
+    unit: '%',
   },
 
   RUNTIME: {

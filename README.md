@@ -1,8 +1,43 @@
+# ELM327 OBD2 Library
 
+## Supported OBD2 Commands
+
+### Mode 01 - Live Data (PIDs starting with "01")
+
+| Command             | PID  | Description                             | Unit    |
+| ------------------- | ---- | --------------------------------------- | ------- |
+| ENGINE_RPM          | 010C | Engine RPM                              | rpm     |
+| VEHICLE_SPEED       | 010D | Vehicle Speed                           | km/h    |
+| COOLANT_TEMP        | 0105 | Coolant Temperature                     | °C      |
+| INTAKE_AIR_TEMP     | 010F | Intake Air Temperature                  | °C      |
+| AMBIENT_TEMP        | 0146 | Ambient Air Temperature                 | °C      |
+| THROTTLE_POSITION   | 0111 | Throttle Position                       | %       |
+| ENGINE_LOAD         | 0104 | Calculated Engine Load                  | %       |
+| FUEL_LEVEL          | 012F | Fuel Tank Level Input                   | %       |
+| BAROMETRIC_PRESSURE | 0133 | Absolute Barometric Pressure            | kPa     |
+| O2S1_WR             | 0113 | O2 Sensor 1 Wide Range Equivalent Ratio | λ       |
+| O2S2_WR             | 0114 | O2 Sensor 2 Wide Range Equivalent Ratio | λ       |
+| O2S3_WR             | 0115 | O2 Sensor 3 Wide Range Equivalent Ratio | λ       |
+| O2S4_WR             | 0116 | O2 Sensor 4 Wide Range Equivalent Ratio | λ       |
+| O2S1_V              | 0117 | O2 Sensor 1 Voltage                     | V       |
+| O2S2_V              | 0118 | O2 Sensor 2 Voltage                     | V       |
+| O2S3_V              | 0119 | O2 Sensor 3 Voltage                     | V       |
+| O2S4_V              | 011A | O2 Sensor 4 Voltage                     | V       |
+| O2S1_ST             | 011B | O2 Sensor 1 Short Term Fuel Trim        | %       |
+| OBD_STANDARDS       | 011C | OBD Standards Compliance                | -       |
+| RUNTIME             | 011F | Run Time Since Engine Start             | seconds |
+
+### Mode 09 - Vehicle Information (PIDs starting with "09")
+
+| Command | PID  | Description                   | Unit   |
+| ------- | ---- | ----------------------------- | ------ |
+| VIN     | 0902 | Vehicle Identification Number | STRING |
+
+---
 
 ### Custom Command Decoder
 
-### Automatic Polling*
+### Automatic Polling\*
 
 ```typescript
 import { OBD2Client } from elm327;
@@ -23,7 +58,7 @@ client.startPolling();
 
 // Listen for poll data
 client.on(pollData, (response) => {
-  console.log(`${response.command}: ${response.value} ${response.unit || '}`);
+  console.log(`${response.command}: ${response.value} ${response.unit || ''}`);
 });
 
 client.on(pollError, (command, error) => {
@@ -36,7 +71,6 @@ client.on(pollError, (command, error) => {
 // Remove specific command from polling
 // client.removePoller(ENGINE_RPM);
 ```
-
 
 ```typescript
 import { OBD2Client, OBD2Command } from 'elm327';
@@ -69,7 +103,7 @@ const client = new OBD2Client(config);
 await client.connect();
 
 // Build a custom diagnostic request
-const request = DiagnosticRequestBuilder.mode1Request(0x0C, 'ENGINE_RPM');
+const request = DiagnosticRequestBuilder.mode1Request(0x0c, 'ENGINE_RPM');
 console.log(`Command: ${request.build()}`); // Output: 010C
 
 // Get VIN using DiagnosticRequestBuilder
@@ -86,7 +120,7 @@ const client = new OBD2Client(config);
 await client.connect();
 
 // Get freeze frame data for a specific PID (e.g., Engine RPM)
-const ffRpm = await client.getFreezeFrame(0x0C);
+const ffRpm = await client.getFreezeFrame(0x0c);
 console.log(`Freeze Frame RPM: ${ffRpm.value}`);
 
 // Get all available freeze frame data
@@ -94,7 +128,7 @@ const allFF = await client.getAllFreezeFrames();
 console.log(`Found ${allFF.length} freeze frame entries`);
 ```
 
-### Automatic Polling*
+### Automatic Polling\*
 
 ```typescript
 import { OBD2Client } from 'elm327';
@@ -135,37 +169,37 @@ client.on('pollError', (command, error) => {
 
 1. **Permission Denied (Linux/macOS)**
 
-    ```bash
-    sudo chmod 666 /dev/ttyUSB0
-    # or add user to dialout group
-    sudo usermod -a -G dialout $USER
-    ```
+   ```bash
+   sudo chmod 666 /dev/ttyUSB0
+   # or add user to dialout group
+   sudo usermod -a -G dialout $USER
+   ```
 
 2. **Port Not Found**
-    - Check if adapter is properly connected
-    - Use `listSerialPorts()` to find available ports
-    - Try different USB ports
+   - Check if adapter is properly connected
+   - Use `listSerialPorts()` to find available ports
+   - Try different USB ports
 
 3. **Adapter Not Responding**
-    - Verify adapter compatibility (ELM327 recommended)
-    - Check baud rate settings
-    - Ensure vehicle is running or ignition is on
-    - Make sure AT commands are supported (try ATS1 instead of ATS0)
+   - Verify adapter compatibility (ELM327 recommended)
+   - Check baud rate settings
+   - Ensure vehicle is running or ignition is on
+   - Make sure AT commands are supported (try ATS1 instead of ATS0)
 
 4. **Bluetooth Connection Issues**
-    - Pair adapter with system first
-    - Check if adapter is already connected to another device
-    - Verify Bluetooth permissions
+   - Pair adapter with system first
+   - Check if adapter is already connected to another device
+   - Verify Bluetooth permissions
 
 5. **WiFi Connection Issues**
-    - Ensure you are connected to the adapter's WiFi network
-    - Verify IP address (default: 192.168.0.10) and port (default: 35000)
-    - Check firewall settings
+   - Ensure you are connected to the adapter's WiFi network
+   - Verify IP address (default: 192.168.0.10) and port (default: 35000)
+   - Check firewall settings
 
 6. **Multi-frame Responses (VIN not working)**
-    - Ensure ATH1 is enabled (included in initialization)
-    - Check if your adapter supports ISO-TP multi-frame messages
-    - Use `sendDiagnosticRequest()` with mode 9 PID 02 for VIN
+   - Ensure ATH1 is enabled (included in initialization)
+   - Check if your adapter supports ISO-TP multi-frame messages
+   - Use `sendDiagnosticRequest()` with mode 9 PID 02 for VIN
 
 ### Debug Mode
 
