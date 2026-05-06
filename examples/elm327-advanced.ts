@@ -123,7 +123,7 @@ async function main() {
         name: 'SPEED_TEST',
       });
       console.log(`   Response success: ${response.success}`);
-      console.log(`   Mode: 0x${response.mode.toString(16)}`);
+      console.log(`   Mode: 0x${response.mode !== undefined ? response.mode.toString(16) : 'unknown'}`);
       if (response.payload) {
         console.log(`   Payload: ${response.payload}`);
       }
