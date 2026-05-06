@@ -1,4 +1,5 @@
 import { DiagnosticMode, DiagnosticRequestConfig, DiagnosticResponse } from './types';
+import { ProtocolError } from './errors';
 
 /**
  * Re-export types for convenience

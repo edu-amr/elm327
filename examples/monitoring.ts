@@ -6,7 +6,7 @@
  *  Connects to an OBD2 adapter and continuously reads vehicle
  *  parameters every 2 seconds, printing results as JSON.
  *
- *  ── Prerequisites ─────────────────────────────────────────
+ *  ── Prerequisites ─────────────────────────────────
  *
  *  1. Build the project:
  *       npm run build
@@ -14,18 +14,18 @@
  *  2. Plug your ELM327 USB adapter into the car (ignition ON)
  *     and into your computer.
  *
- *  ── How to run ────────────────────────────────────────────
+ *  ── How to run ────────────────────────────────────
  *
- *  node examples/monitoring.js <port>
+ *  npx ts-node examples/monitoring.ts <port>
  *
  *  Examples:
- *    node examples/monitoring.js /dev/ttyUSB0        # Linux
- *    node examples/monitoring.js /dev/tty.usbserial-XXXX  # macOS
- *    node examples/monitoring.js COM3                # Windows
+ *    npx ts-node examples/monitoring.ts /dev/ttyUSB0        # Linux
+ *    npx ts-node examples/monitoring.ts /dev/tty.usbserial-XXXX  # macOS
+ *    npx ts-node examples/monitoring.ts COM3                # Windows
  *
  *  Stop with Ctrl+C at any time.
  *
- *  ── What it monitors ────────────────────────────────────
+ *  ── What it monitors ────────────────────────────────
  *
  *  • Engine RPM
  *  • Vehicle Speed (km/h)
@@ -33,10 +33,10 @@
  *  • Engine Load (%)
  *  • Throttle Position (%)
  *
- *  Tip: Run basic-usage.js first to auto-detect your port:
- *    node examples/basic-usage.js
+ *  Tip: Run basic-usage.ts first to auto-detect your port:
+ *    npx ts-node examples/basic-usage.ts
  *
- *  ── Troubleshooting ─────────────────────────────────────
+ *  ── Troubleshooting ─────────────────────────────────
  *
  *  Permission denied (Linux/macOS):
  *    sudo chmod 666 /dev/ttyUSB0
@@ -47,27 +47,27 @@
  * ============================================================
  */
 
-const { OBD2Client } = require('../dist/index.js');
+import { OBD2Client } from '../src/index';
 
-async function main() {
+async function main(): Promise<void> {
   const port = process.argv[2];
   if (!port) {
     console.error('');
     console.error('Usage:');
-    console.error('  node examples/monitoring.js <port>');
+    console.error('  npx ts-node examples/monitoring.ts <port>');
     console.error('');
     console.error('Examples:');
-    console.error('  node examples/monitoring.js /dev/ttyUSB0        # Linux');
-    console.error('  node examples/monitoring.js /dev/tty.usbserial-XXXX  # macOS');
-    console.error('  node examples/monitoring.js COM3                # Windows');
+    console.error('  npx ts-node examples/monitoring.ts /dev/ttyUSB0        # Linux');
+    console.error('  npx ts-node examples/monitoring.ts /dev/tty.usbserial-XXXX  # macOS');
+    console.error('  npx ts-node examples/monitoring.ts COM3                # Windows');
     console.error('');
-    console.error('Tip: Run basic-usage.js first to auto-detect your port:');
-    console.error('  node examples/basic-usage.js');
+    console.error('Tip: Run basic-usage.ts first to auto-detect your port:');
+    console.error('  npx ts-node examples/basic-usage.ts');
     process.exit(1);
   }
 
   const config = {
-    type: 'serial',
+    type: 'serial' as const,
     port: port,
     baudRate: 38400,
     timeout: 5000,
@@ -83,11 +83,11 @@ async function main() {
     console.log('');
   });
 
-  client.on('error', (error) => {
+  client.on('error', (error: Error) => {
     console.error(`[✗] ${error.message}`);
   });
 
-  client.on('response', (response) => {
+  client.on('response', (response: { command: string; value: unknown; unit: string | undefined }) => {
     console.log(`[Response] ${response.command}: ${response.value} ${response.unit}`);
   });
 
@@ -109,7 +109,7 @@ async function main() {
       const results = await client.queryMultiple(monitoredParams);
 
       if (results.length > 0) {
-        const data = {};
+        const data: Record<string, string> = {};
         for (const r of results) {
           data[r.command] = `${r.value} ${r.unit}`;
         }

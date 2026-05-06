@@ -6,7 +6,7 @@
  *  Continuously reads vehicle parameters every 2 seconds via
  *  WiFi and displays them in the terminal.
  *
- *  ── Prerequisites ─────────────────────────────────────────
+ *  ── Prerequisites ─────────────────────────────────
  *
  *  1. Build the project:
  *       npm run build
@@ -15,27 +15,27 @@
  *
  *  3. Make sure ignition is ON
  *
- *  ── How to run ────────────────────────────────────────────
+ *  ── How to run ────────────────────────────────────
  *
  *  Default (192.168.0.10:35000):
- *       node examples/wifi-monitoring.js
+ *       npx ts-node examples/wifi-monitoring.ts
  *
  *  Custom host and port:
- *       node examples/wifi-monitoring.js 192.168.1.100 35000
+ *       npx ts-node examples/wifi-monitoring.ts 192.168.1.100 35000
  *
  *  Stop with Ctrl+C at any time.
  *
  * ============================================================
  */
 
-const { OBD2Client } = require('../dist/index.js');
+import { OBD2Client } from '../src/index';
 
-async function main() {
+async function main(): Promise<void> {
   const host = process.argv[2] || '192.168.0.10';
-  const port = process.argv[3] || 35000;
+  const port = parseInt(process.argv[3] || '35000', 10);
 
   const config = {
-    type: 'wifi',
+    type: 'wifi' as const,
     host: host,
     port: port,
     timeout: 5000,
@@ -51,7 +51,7 @@ async function main() {
     console.log('');
   });
 
-  client.on('error', (error) => {
+  client.on('error', (error: Error) => {
     console.error(`[✗] ${error.message}`);
   });
 
@@ -75,7 +75,7 @@ async function main() {
         const results = await client.queryMultiple(monitoredParams);
 
         if (results.length > 0) {
-          const data = {};
+          const data: Record<string, string> = {};
           for (const r of results) {
             data[r.command] = `${r.value} ${r.unit}`;
           }
@@ -101,7 +101,7 @@ async function main() {
     console.error('Tips:');
     console.error('  - Make sure you are connected to the ELM327 WiFi network');
     console.error('  - Verify the IP with: networksetup -getinfo Wi-Fi');
-    console.error('  - Try pinging: ping ' + host);
+    console.error(`  - Try pinging: ping ${host}`);
     console.error('  - Default port is 35000');
     await client.disconnect();
   }

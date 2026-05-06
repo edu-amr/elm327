@@ -17,12 +17,12 @@
  *  ── How to run ────────────────────────────────────────────
  *
  *  Auto-detect serial port:
- *       node examples/basic-usage.js
+ *       npx ts-node examples/basic-usage.ts
  *
  *  Specify port manually:
- *       node examples/basic-usage.js /dev/ttyUSB0       # Linux
- *       node examples/basic-usage.js /dev/tty.usbserial-XXXX  # macOS
- *       node examples/basic-usage.js COM3               # Windows
+ *       npx ts-node examples/basic-usage.ts /dev/ttyUSB0       # Linux
+ *       npx ts-node examples/basic-usage.ts /dev/tty.usbserial-XXXX  # macOS
+ *       npx ts-node examples/basic-usage.ts COM3               # Windows
  *
  *  ── No hardware? ────────────────────────────────────────
  *
@@ -43,9 +43,9 @@
  * ============================================================
  */
 
-const { OBD2Client, listSerialPorts } = require('../dist/index.js');
+import { OBD2Client, listSerialPorts } from '../src/index';
 
-async function main() {
+async function main(): Promise<void> {
   const port = process.argv[2];
 
   if (port) {
@@ -60,7 +60,7 @@ async function main() {
       console.log('Make sure your OBD2 adapter is plugged in via USB.');
       console.log('');
       console.log('Usage:');
-      console.log('  node examples/basic-usage.js <port>');
+      console.log('  npx ts-node examples/basic-usage.ts <port>');
       console.log('');
       console.log('Example ports:');
       console.log('  Windows:  COM3');
@@ -75,13 +75,13 @@ async function main() {
     }
     console.log('');
 
-    await runWithPort(ports[0].path);
+    await runWithPort(ports[0]!.path);
   }
 }
 
-async function runWithPort(port) {
+async function runWithPort(port: string): Promise<void> {
   const config = {
-    type: 'serial',
+    type: 'serial' as const,
     port: port,
     baudRate: 38400,
     timeout: 5000,
@@ -98,7 +98,7 @@ async function runWithPort(port) {
     console.log('');
   });
 
-  client.on('error', (error) => console.error('[✗] Error:', error.message));
+  client.on('error', (error: Error) => console.error('[✗] Error:', error.message));
 
   try {
     console.log(`Connecting to ${port}...`);

@@ -6,7 +6,7 @@
  *  This example connects to an OBD2 adapter via WiFi (TCP)
  *  and reads basic vehicle parameters.
  *
- *  ── Prerequisites ─────────────────────────────────────────
+ *  ── Prerequisites ─────────────────────────────────
  *
  *  1. Build the project:
  *       npm run build
@@ -16,13 +16,13 @@
  *
  *  3. Make sure ignition is ON (engine doesn't need to run)
  *
- *  ── How to run ────────────────────────────────────────────
+ *  ── How to run ────────────────────────────────────
  *
  *  Default (192.168.0.10:35000):
- *       node examples/wifi-usage.js
+ *       npx ts-node examples/wifi-usage.ts
  *
  *  Custom host and port:
- *       node examples/wifi-usage.js 192.168.1.100 35000
+ *       npx ts-node examples/wifi-usage.ts 192.168.1.100 35000
  *
  *  ── Finding your adapter IP on macOS ──────────────────────
  *
@@ -38,7 +38,7 @@
  *    - 192.168.1.10
  *    - 10.0.0.1
  *
- *  ── Troubleshooting ─────────────────────────────────────
+ *  ── Troubleshooting ─────────────────────────────
  *
  *  Connection refused / timeout:
  *    - Verify you are connected to the ELM327 WiFi network
@@ -52,14 +52,14 @@
  * ============================================================
  */
 
-const { OBD2Client } = require('../dist/index.js');
+import { OBD2Client } from '../src/index';
 
-async function main() {
+async function main(): Promise<void> {
   const host = process.argv[2] || '192.168.0.10';
-  const port = process.argv[3] || 35000;
+  const port = parseInt(process.argv[3] || '35000', 10);
 
   const config = {
-    type: 'wifi',
+    type: 'wifi' as const,
     host: host,
     port: port,
     timeout: 5000,
@@ -75,7 +75,7 @@ async function main() {
     console.log(`    Protocol: ${info.protocol}`);
     console.log('');
   });
-  client.on('error', (error) => console.error('[✗] Error:', error.message));
+  client.on('error', (error: Error) => console.error('[✗] Error:', error.message));
 
   try {
     console.log(`Connecting to ${host}:${port}...`);
@@ -108,7 +108,7 @@ async function main() {
     console.error('Tips:');
     console.error('  - Make sure you are connected to the ELM327 WiFi network');
     console.error('  - Verify the IP with: networksetup -getinfo Wi-Fi');
-    console.error('  - Try pinging: ping ' + host);
+    console.error(`  - Try pinging: ping ${host}`);
     console.error('  - Default port is 35000');
   } finally {
     await client.disconnect();
