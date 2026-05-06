@@ -228,6 +228,37 @@ client.on('adapterReset', () => {
 });
 ```
 
+### Bluetooth LE Smart Discovery
+
+The library now supports multiple known ELM327 BLE UUIDs for better clone compatibility.
+
+**Known UUIDs:**
+- `0000FFF0` / `0000FFF1` (Standard ELM327)
+- `0000FFE0` / `0000FFE1` (Common clones)
+- `0000BEEF` / `0000BEEF` (Some cheap clones)
+- And more...
+
+The library automatically tries all known UUIDs until one works.
+
+```typescript
+// In browser (Chrome/Edge with Web Bluetooth API):
+import { OBD2Client } from 'elm327';
+
+const client = new OBD2Client({
+  type: 'bluetooth',
+  address: 'any', // Not used for Web Bluetooth
+});
+
+// Listen for debug info about UUID discovery
+client.on('debug', (data) => {
+  console.log('Debug:', data);
+});
+
+await client.connect(); // Auto-tries all known UUIDs
+
+// Check console for "Connected using UUID: <name>"
+```
+
 ### Diagnostic Request Builder (OpenXC-inspired)
 
 ```typescript
@@ -393,6 +424,9 @@ npx ts-node examples/clone-compat.ts /dev/ttyUSB0 lenient
 
 # Reset adapter without reconnecting:
 npx ts-node examples/reset-adapter.ts /dev/ttyUSB0
+
+# Bluetooth LE (run in browser - see examples/bluetooth-ble.ts):
+# Open Chrome/Edge and import/run the bluetooth-ble.ts example
 
 # WiFi examples:
 npx ts-node examples/wifi-usage.ts

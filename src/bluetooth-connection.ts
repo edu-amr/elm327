@@ -3,6 +3,40 @@ import { ConnectionError } from './errors';
 import { ConnectionConfig } from './types';
 
 /**
+ * Known ELM327 BLE UUIDs for smart discovery.
+ * Cheap clones use different UUIDs than the standard ELM327.
+ */
+const ELM327_BLE_UUIDS = {
+  // Standard ELM327 BLE UUIDs
+  STANDARD: {
+    service: '0000fff0-0000-1000-8000-00805f9b34fb',
+    writeCharacteristic: '0000fff1-0000-1000-8000-00805f9b34fb',
+    notifyCharacteristic: '0000fff1-0000-1000-8000-00805f9b34fb',
+  },
+  // Common clone UUIDs
+  CLONE_FFE0: {
+    service: '0000ffe0-0000-1000-8000-00805f9b34fb',
+    writeCharacteristic: '0000ffe1-0000-1000-8000-00805f9b34fb',
+    notifyCharacteristic: '0000ffe1-0000-1000-8000-00805f9b34fb',
+  },
+  CLONE_FFF0: {
+    service: '0000fff0-0000-1000-8000-00805f9b34fb',
+    writeCharacteristic: '0000fff1-0000-1000-8000-00805f9b34fb',
+    notifyCharacteristic: '0000fff2-0000-1000-8000-00805f9b34fb',
+  },
+  CLONE_BEEF: {
+    service: '0000beef-0000-1000-8000-00805f9b34fb',
+    writeCharacteristic: '0000beef-0000-1000-8000-00805f9b34fb',
+    notifyCharacteristic: '0000beef-0000-1000-8000-00805f9b34fb',
+  },
+  CLONE_FFE0_FFE1: {
+    service: '0000ffe0-0000-1000-8000-00805f9b34fb',
+    writeCharacteristic: '0000ffe1-0000-1000-8000-00805f9b34fb',
+    notifyCharacteristic: '0000ffe2-0000-1000-8000-00805f9b34fb',
+  },
+};
+
+/**
  * Bluetooth connection to an ELM327 adapter.
  *
  * In browsers: uses the Web Bluetooth API (BLE only).
@@ -10,6 +44,7 @@ import { ConnectionConfig } from './types';
  * device via rfcomm (Linux: /dev/rfcomm0) or /dev/tty.* (macOS).
  *
  * Updated to use ResponseMatcher for better request/response matching.
+ * Implements smart discovery with multiple known UUIDs for clone compatibility.
  */
 export class BluetoothConnection extends OBD2Connection {
   private socket: {
@@ -20,6 +55,7 @@ export class BluetoothConnection extends OBD2Connection {
   private buffer = '';
   private _btHandler: ((event: any) => void) | undefined = undefined;
   private _characteristic: any = null;
+  private _device: any = null;
 
   constructor(config: ConnectionConfig) {
     super(config);
@@ -61,6 +97,7 @@ export class BluetoothConnection extends OBD2Connection {
       }
       this.socket = null;
     }
+    this._device = null;
     this.isConnected = false;
     this.emit('disconnected');
   }
@@ -107,29 +144,59 @@ export class BluetoothConnection extends OBD2Connection {
       throw new Error('Web Bluetooth API is not available');
     }
 
-    const device = await bt.requestDevice({
-      filters: [{ services: ['0000fff0-0000-1000-8000-00805f9b34fb'] }],
-      optionalServices: ['0000fff0-0000-1000-8000-00805f9b34fb'],
-    });
+    // Smart discovery: try all known ELM327 UUIDs
+    const uuidEntries = Object.entries(ELM327_BLE_UUIDS);
+    let lastError: Error | null = null;
 
-    const server = await device.gatt.connect();
-    const service = await server.getPrimaryService('0000fff0-0000-1000-8000-00805f9b34fb');
-    const characteristic = await service.getCharacteristic('0000fff1-0000-1000-8000-00805f9b34fb');
+    for (const [name, uuids] of uuidEntries) {
+      try {
+        this.emit('debug', { message: `Trying BLE UUID: ${name}` });
 
-    await characteristic.startNotifications();
+        const filters = [{ services: [uuids.service] }];
+        const optionalServices = [uuids.service];
 
-    // Save reference for later removal
-    this._btHandler = this.handleBluetoothData.bind(this);
-    this._characteristic = characteristic;
-    characteristic.addEventListener('characteristicvaluechanged', this._btHandler);
+        // Request device with current UUID
+        const device = await bt.requestDevice({
+          filters,
+          optionalServices,
+        });
 
-    this.socket = {
-      send: (data: string): void | Promise<void> => {
-        const encoder = new TextEncoder();
-        return characteristic.writeValue(encoder.encode(data));
-      },
-      close: () => device.gatt.disconnect(),
-    };
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(uuids.service);
+        const characteristic = await service.getCharacteristic(uuids.notifyCharacteristic);
+
+        await characteristic.startNotifications();
+
+        // Save reference for later removal
+        this._btHandler = this.handleBluetoothData.bind(this);
+        this._characteristic = characteristic;
+        this._device = device;
+        characteristic.addEventListener('characteristicvaluechanged', this._btHandler);
+
+        this.socket = {
+          send: (data: string): void | Promise<void> => {
+            const encoder = new TextEncoder();
+            const writeChar = uuids.writeCharacteristic;
+            // Use writeCharacteristic if different from notifyCharacteristic
+            if (writeChar !== uuids.notifyCharacteristic) {
+              return service.getCharacteristic(writeChar).then((wc: any) => wc.writeValue(encoder.encode(data)));
+            }
+            return characteristic.writeValue(encoder.encode(data));
+          },
+          close: () => device.gatt.disconnect(),
+        };
+
+        this.emit('debug', { message: `Connected using UUID: ${name}` });
+        return; // Success, exit the loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        this.emit('debug', { message: `UUID ${name} failed: ${lastError.message}` });
+        // Continue to next UUID
+      }
+    }
+
+    // If we get here, all UUIDs failed
+    throw lastError || new Error('No ELM327 device found with known UUIDs');
   }
 
   private async connectNativeBluetooth(): Promise<void> {
