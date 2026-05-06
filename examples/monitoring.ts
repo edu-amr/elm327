@@ -3,8 +3,7 @@
  *  Real-time Monitoring Example — elm327
  * ============================================================
  *
- *  Connects to an OBD2 adapter and continuously reads vehicle
- *  parameters every 2 seconds, printing results as JSON.
+ *  Demonstrates the new automatic polling API (similar to bluetooth-obd and serial-obd)
  *
  *  ── Prerequisites ─────────────────────────────────
  *
@@ -78,7 +77,7 @@ async function main(): Promise<void> {
   client.on('connected', () => console.log('[✓] Connected to adapter'));
   client.on('ready', (info) => {
     console.log(`[✓] Adapter: ${info.version} | Protocol: ${info.protocol}`);
-    console.log('Starting real-time monitoring...');
+    console.log('Starting automatic polling...');
     console.log('Press Ctrl+C to stop.');
     console.log('');
   });
@@ -87,48 +86,38 @@ async function main(): Promise<void> {
     console.error(`[✗] ${error.message}`);
   });
 
-  client.on('response', (response: { command: string; value: unknown; unit: string | undefined }) => {
-    console.log(`[Response] ${response.command}: ${response.value} ${response.unit}`);
-  });
-
   await client.connect();
 
-  const monitoredParams = [
-    'ENGINE_RPM',
-    'VEHICLE_SPEED',
-    'COOLANT_TEMP',
-    'ENGINE_LOAD',
-    'THROTTLE_POS',
-  ];
+  // Add commands to polling list (similar to bluetooth-obd's addPoller)
+  client.addPoller('ENGINE_RPM');
+  client.addPoller('VEHICLE_SPEED');
+  client.addPoller('COOLANT_TEMP');
+  client.addPoller('ENGINE_LOAD');
+  client.addPoller('THROTTLE_POS');
 
-  console.log(`Monitoring: ${monitoredParams.join(', ')}`);
-  console.log('');
+  // Set polling interval (default: 1000ms)
+  client.setPollInterval(2000);
 
-  const interval = setInterval(async () => {
-    try {
-      const results = await client.queryMultiple(monitoredParams);
+  // Start automatic polling (similar to serial-obd's startPolling)
+  client.startPolling();
 
-      if (results.length > 0) {
-        const data: Record<string, string> = {};
-        for (const r of results) {
-          if ('error' in r) {
-            data[r.command] = r.error;
-          } else {
-            data[r.command] = `${r.value} ${r.unit}`;
-          }
-        }
-        console.log(JSON.stringify(data, null, 2));
-        console.log('---');
-      }
-    } catch (error) {
-      console.error(`[Query Error] ${error instanceof Error ? error.message : error}`);
-    }
-  }, 2000);
+  // Listen for poll data
+  client.on('pollData', (response) => {
+    console.log(`${response.command}: ${response.value} ${response.unit || ''}`);
+  });
+
+  client.on('pollComplete', (results) => {
+    console.log(`--- Poll cycle complete: ${results.length} results ---`);
+  });
+
+  client.on('pollError', (command, error) => {
+    console.error(`[Poll Error] ${command}: ${error}`);
+  });
 
   process.on('SIGINT', async () => {
     console.log('');
-    console.log('Stopping monitoring...');
-    clearInterval(interval);
+    console.log('Stopping polling...');
+    client.stopPolling();
     await client.disconnect();
     process.exit(0);
   });

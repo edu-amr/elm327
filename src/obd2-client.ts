@@ -26,6 +26,9 @@ export class OBD2Client extends EventEmitter {
   private autoReconnect = false;
   private reconnectTimer?: NodeJS.Timeout;
   private _manualDisconnect = false;
+  private pollers: Map<string, { interval: NodeJS.Timeout; intervalMs: number }> = new Map();
+  private globalPollInterval?: NodeJS.Timeout;
+  private pollIntervalMs = 1000; // Default 1 second
 
   constructor(private config: ConnectionConfig) {
     super();
@@ -105,9 +108,97 @@ export class OBD2Client extends EventEmitter {
   }
 
   /**
+   * Sets the default polling interval for all pollers.
+   */
+  setPollInterval(ms: number): void {
+    this.pollIntervalMs = ms;
+  }
+
+  /**
+   * Adds a command to the polling list.
+   * Similar to bluetooth-obd's addPoller("rpm").
+   */
+  addPoller(commandName: string): void {
+    if (!this.pollers.has(commandName)) {
+      this.pollers.set(commandName, { interval: undefined as any, intervalMs: this.pollIntervalMs });
+    }
+  }
+
+  /**
+   * Removes a command from the polling list.
+   */
+  removePoller(commandName: string): void {
+    const poller = this.pollers.get(commandName);
+    if (poller && poller.interval) {
+      clearInterval(poller.interval);
+    }
+    this.pollers.delete(commandName);
+  }
+
+  /**
+   * Starts automatic polling at the specified interval.
+   * Similar to serial-obd's startPolling(1000).
+   */
+  startPolling(intervalMs?: number): void {
+    const interval = intervalMs || this.pollIntervalMs;
+    
+    // Clear existing global poll
+    if (this.globalPollInterval) {
+      clearInterval(this.globalPollInterval);
+    }
+
+    this.globalPollInterval = setInterval(async () => {
+      if (!this.isInitialized || !this.isConnected()) {
+        return;
+      }
+
+      const commands = Array.from(this.pollers.keys());
+      if (commands.length === 0) {
+        // If no specific pollers, use default set
+        commands.push('ENGINE_RPM', 'VEHICLE_SPEED', 'COOLANT_TEMP');
+      }
+
+      try {
+        const results = await this.queryMultiple(commands);
+        
+        for (const r of results) {
+          if ('error' in r) {
+            this.emit('pollError', r.command, r.error);
+          } else {
+            this.emit('pollData', r);
+          }
+        }
+        
+        this.emit('pollComplete', results);
+      } catch (error) {
+        this.emit('pollError', 'POLL_ERROR', error instanceof Error ? error.message : error);
+      }
+    }, interval);
+  }
+
+  /**
+   * Stops the automatic polling.
+   */
+  stopPolling(): void {
+    if (this.globalPollInterval) {
+      clearInterval(this.globalPollInterval);
+      this.globalPollInterval = undefined;
+    }
+
+    // Also clear individual pollers
+    for (const [name, poller] of this.pollers) {
+      if (poller.interval) {
+        clearInterval(poller.interval);
+        poller.interval = undefined as any;
+      }
+    }
+  }
+
+  /**
    * Disconnects from the OBD2 adapter.
    */
   async disconnect(): Promise<void> {
+    this.stopPolling(); // Stop polling on disconnect
     this._manualDisconnect = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
