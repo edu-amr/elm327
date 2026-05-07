@@ -144,7 +144,7 @@ const client = new OBD2Client(config);
 |--------|------|----------|---------|-------------|
 | `type` | `'serial' \| 'bluetooth' \| 'wifi'` | Yes | - | Connection type |
 | `port` | `string` | For serial | - | Serial port path (e.g., /dev/ttyUSB0, COM3) |
-| `address` | `string` | For bluetooth | - | Bluetooth device address |
+| `address` | `string` | For bluetooth | - | Bluetooth device address (optional for Web Bluetooth API) |
 | `host` | `string` | For wifi | 192.168.0.10 | WiFi adapter IP address |
 | `port` | `string \| number` | For wifi | 35000 | WiFi adapter port |
 | `baudRate` | `number` | No | 38400 | Serial baud rate |
@@ -160,13 +160,14 @@ const client = new OBD2Client(config);
 - **`'lenient'`**: Skip unsupported commands, longer delays
 - **`'minimal'`**: Only essential commands (ATZ, ATE0, ATSP0)
 
-#### Flow Control Configuration
+ #### Flow Control Configuration
 
 ```typescript
 flowControl: {
   enabled: true,
-  flowControlHeader: '0x7E0', // CAN ID for flow control
-  flowControlData: '0x30',    // Flow control data byte
+  header: '0x7E0', // CAN ID for flow control
+  data: '0x30',    // Flow control data byte
+  mode: 1,          // Flow control mode (optional)
 }
 ```
 
@@ -249,7 +250,7 @@ client.stopPolling();                      // Stop polling
 client.setAutoReconnect(enabled);         // Enable/disable auto-reconnect with exponential backoff
 ```
 
-#### Events
+ #### Events
 
 ```typescript
 client.on('connected', () => {});           // Connection established
@@ -258,9 +259,16 @@ client.on('ready', (adapterInfo) => {});   // Adapter initialized successfully
 client.on('response', (response) => {});   // Decoded data received
 client.on('error', (error) => {});         // Error occurred
 client.on('rawData', (data) => {});        // Raw data from adapter
-client.on('debug', (data) => {});          // Debug information
+client.on('pollData', (data) => {});       // Polling data received
+client.on('pollError', (command, error) => {}); // Polling error
+client.on('pollComplete', (results) => {}); // Polling complete
 client.on('scanProgress', (data) => {});   // PID scan progress updates
 client.on('scanComplete', (data) => {});  // PID scan completed
+client.on('reconnecting', () => {});       // Reconnection in progress
+client.on('reconnected', () => {});      // Reconnection successful
+client.on('canData', (data) => {});        // CAN frame received (monitor mode)
+client.on('adapterReset', () => {});      // Adapter reset completed
+client.on('debug', (data) => {});          // Debug information
 ```
 
 ### Available Commands
@@ -338,11 +346,13 @@ const client = createOBD2Client(config);
 - For old clones: use `cloneCompatibility: 'lenient'` or `'minimal'`
 
 #### Bluetooth
-- **In browsers**: uses Web Bluetooth API (BLE only)
+
+- **In browsers**: uses Web Bluetooth API (BLE only) - no address needed (uses UUID scan)
 - **In Node.js**: use SerialConnection with a paired device
 - **Linux**: `rfcomm connect /dev/rfcomm0 <MAC>` then use SerialConnection
 - **macOS**: use `/dev/tty.*` device after pairing
 - **Smart Discovery**: Automatically tries multiple known UUIDs for clone support
+- **Note**: For Web Bluetooth, `address` is optional (scans for devices automatically)
 
 #### WiFi (TCP)
 - Connects over TCP/IP to WiFi ELM327 adapters
@@ -384,10 +394,18 @@ npx ts-node examples/flow-control.ts /dev/ttyUSB0
 Demonstrates CAN flow control (AT FC SH/SD/SM/CFC) for controlled communication.
 
 #### CAN Bus Monitor
+
 ```bash
 npx ts-node examples/can-monitor.ts /dev/ttyUSB0
 ```
 Captures raw CAN traffic using AT MA (Monitor All) command.
+
+#### CAN Bus Monitor with Filter
+
+```bash
+npx ts-node examples/can-monitor-with-filter.ts 7E8
+```
+Monitors only frames matching the specified CAN ID (uses AT CF + AT CM commands).
 
 #### PID Scanner
 ```bash
@@ -572,7 +590,9 @@ client.on('error', (error) => {
 
 ## Contributing
 
-Contributions are welcome! Please read our Contributing Guide for details on our code of conduct and the process for submitting pull requests.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and changes.
 
 ### Development Setup
 
