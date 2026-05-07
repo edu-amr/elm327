@@ -15,12 +15,12 @@
  *
  *  ── How to run ────────────────────────────────────
  *
- *  npx ts-node examples/monitoring.ts <port>
+ *  node examples/monitoring.js <port>
  *
  *  Examples:
- *    npx ts-node examples/monitoring.ts /dev/ttyUSB0        # Linux
- *    npx ts-node examples/monitoring.ts /dev/tty.usbserial-XXXX  # macOS
- *    npx ts-node examples/monitoring.ts COM3                # Windows
+ *    node examples/monitoring.js /dev/ttyUSB0        # Linux
+ *    node examples/monitoring.js /dev/tty.usbserial-XXXX  # macOS
+ *    node examples/monitoring.js COM3                # Windows
  *
  *  Stop with Ctrl+C at any time.
  *
@@ -32,8 +32,8 @@
  *  • Engine Load (%)
  *  • Throttle Position (%)
  *
- *  Tip: Run basic-usage.ts first to auto-detect your port:
- *    npx ts-node examples/basic-usage.ts
+ *  Tip: Run basic-usage.js first to auto-detect your port:
+ *    node examples/basic-usage.js
  *
  *  ── Troubleshooting ─────────────────────────────────
  *
@@ -54,15 +54,15 @@ async function main() {
   if (!port) {
     console.error('');
     console.error('Usage:');
-    console.error('  npx ts-node examples/monitoring.ts <port>');
+    console.error('  node examples/monitoring.js <port>');
     console.error('');
     console.error('Examples:');
-    console.error('  npx ts-node examples/monitoring.ts /dev/ttyUSB0        # Linux');
-    console.error('  npx ts-node examples/monitoring.ts /dev/tty.usbserial-XXXX  # macOS');
-    console.error('  npx ts-node examples/monitoring.ts COM3                # Windows');
+    console.error('  node examples/monitoring.js /dev/ttyUSB0        # Linux');
+    console.error('  node examples/monitoring.js /dev/tty.usbserial-XXXX  # macOS');
+    console.error('  node examples/monitoring.js COM3                # Windows');
     console.error('');
-    console.error('Tip: Run basic-usage.ts first to auto-detect your port:');
-    console.error('  npx ts-node examples/basic-usage.ts');
+    console.error('Tip: Run basic-usage.js first to auto-detect your port:');
+    console.error('  node examples/basic-usage.js');
     process.exit(1);
   }
 

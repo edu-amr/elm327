@@ -16,12 +16,12 @@
  *
  *  ── How to run ────────────────────────────────────
  *
- *  npx ts-node examples/freeze-frame.ts <port>
+ *  node examples/freeze-frame.js <port>
  *
  *  Examples:
- *    npx ts-node examples/freeze-frame.ts /dev/ttyUSB0        # Linux
- *    npx ts-node examples/freeze-frame.ts /dev/tty.usbserial-XXXX  # macOS
- *    npx ts-node examples/freeze-frame.ts COM3                # Windows
+ *    node examples/freeze-frame.js /dev/ttyUSB0        # Linux
+ *    node examples/freeze-frame.js /dev/tty.usbserial-XXXX  # macOS
+ *    node examples/freeze-frame.js COM3                # Windows
  *
  *  Stop with Ctrl+C at any time.
  *
@@ -35,12 +35,12 @@ async function main() {
   if (!port) {
     console.error('');
     console.error('Usage:');
-    console.error('  npx ts-node examples/freeze-frame.ts <port>');
+    console.error('  node examples/freeze-frame.js <port>');
     console.error('');
     console.error('Examples:');
-    console.error('  npx ts-node examples/freeze-frame.ts /dev/ttyUSB0        # Linux');
-    console.error('  npx ts-node examples/freeze-frame.ts /dev/tty.usbserial-XXXX  # macOS');
-    console.error('  npx ts-node examples/freeze-frame.ts COM3                # Windows');
+    console.error('  node examples/freeze-frame.js /dev/ttyUSB0        # Linux');
+    console.error('  node examples/freeze-frame.js /dev/tty.usbserial-XXXX  # macOS');
+    console.error('  node examples/freeze-frame.js COM3                # Windows');
     process.exit(1);
   }
 

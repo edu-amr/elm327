@@ -20,12 +20,12 @@
  *  ── How to run ────────────────────────────────────────────
  *
  *  Auto-detect serial port:
- *       npx ts-node examples/flow-control.ts
+ *       node examples/flow-control.js
  *
  *  Specify port manually:
- *       npx ts-node examples/flow-control.ts /dev/ttyUSB0       # Linux
- *       npx ts-node examples/flow-control.ts /dev/tty.usbserial-XXXX  # macOS
- *       npx ts-node examples/flow-control.ts COM3               # Windows
+ *       node examples/flow-control.js /dev/ttyUSB0       # Linux
+ *       node examples/flow-control.js /dev/tty.usbserial-XXXX  # macOS
+ *       node examples/flow-control.js COM3               # Windows
  *
  *  ── Flow Control Explained ────────────────────────────────
  *

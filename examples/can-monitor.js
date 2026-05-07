@@ -18,12 +18,12 @@
  *  ── How to run ────────────────────────────────────────────
  *
  *  Auto-detect serial port:
- *       npx ts-node examples/can-monitor.ts
+ *       node examples/can-monitor.js
  *
  *  Specify port manually:
- *       npx ts-node examples/can-monitor.ts /dev/ttyUSB0       # Linux
- *       npx ts-node examples/can-monitor.ts /dev/tty.usbserial-XXXX  # macOS
- *       npx ts-node examples/can-monitor.ts COM3               # Windows
+ *       node examples/can-monitor.js /dev/ttyUSB0       # Linux
+ *       node examples/can-monitor.js /dev/tty.usbserial-XXXX  # macOS
+ *       node examples/can-monitor.js COM3               # Windows
  *
  *  ── What it does ──────────────────────────────────────────
  *

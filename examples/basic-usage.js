@@ -17,12 +17,12 @@
  *  ── How to run ────────────────────────────────────────────
  *
  *  Auto-detect serial port:
- *       npx ts-node examples/basic-usage.ts
+ *       node examples/basic-usage.js
  *
  *  Specify port manually:
- *       npx ts-node examples/basic-usage.ts /dev/ttyUSB0       # Linux
- *       npx ts-node examples/basic-usage.ts /dev/tty.usbserial-XXXX  # macOS
- *       npx ts-node examples/basic-usage.ts COM3               # Windows
+ *       node examples/basic-usage.js /dev/ttyUSB0       # Linux
+ *       node examples/basic-usage.js /dev/tty.usbserial-XXXX  # macOS
+ *       node examples/basic-usage.js COM3               # Windows
  *
  *  ── No hardware? ────────────────────────────────────────
  *
@@ -60,7 +60,7 @@ async function main() {
       console.log('Make sure your OBD2 adapter is plugged in via USB.');
       console.log('');
       console.log('Usage:');
-      console.log('  npx ts-node examples/basic-usage.ts <port>');
+      console.log('  node examples/basic-usage.js <port>');
       console.log('');
       console.log('Example ports:');
       console.log('  Windows:  COM3');

@@ -19,10 +19,10 @@
  *  ── How to run ────────────────────────────────────
  *
  *  Default (192.168.0.10:35000):
- *       npx ts-node examples/wifi-usage.ts
+ *       node examples/wifi-usage.js
  *
  *  Custom host and port:
- *       npx ts-node examples/wifi-usage.ts 192.168.1.100 35000
+ *       node examples/wifi-usage.js 192.168.1.100 35000
  *
  *  ── Finding your adapter IP on macOS ──────────────────────
  *

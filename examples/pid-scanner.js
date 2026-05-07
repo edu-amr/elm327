@@ -17,12 +17,12 @@
  *  ── How to run ────────────────────────────────────────────
  *
  *  Auto-detect serial port:
- *       npx ts-node examples/pid-scanner.ts
+ *       node examples/pid-scanner.js
  *
  *  Specify port manually:
- *       npx ts-node examples/pid-scanner.ts /dev/ttyUSB0       # Linux
- *       npx ts-node examples/pid-scanner.ts /dev/tty.usbserial-XXXX  # macOS
- *       npx ts-node examples/pid-scanner.ts COM3               # Windows
+ *       node examples/pid-scanner.js /dev/ttyUSB0       # Linux
+ *       node examples/pid-scanner.js /dev/tty.usbserial-XXXX  # macOS
+ *       node examples/pid-scanner.js COM3               # Windows
  *
  *  ── What it does ──────────────────────────────────────────
  *

@@ -17,12 +17,12 @@
  *  ── How to run ────────────────────────────────────────────
  *
  *  Auto-detect serial port:
- *       npx ts-node examples/reset-adapter.ts
+ *       node examples/reset-adapter.js
  *
  *  Specify port manually:
- *       npx ts-node examples/reset-adapter.ts /dev/ttyUSB0       # Linux
- *       npx ts-node examples/reset-adapter.ts /dev/tty.usbserial-XXXX  # macOS
- *       npx ts-node examples/reset-adapter.ts COM3               # Windows
+ *       node examples/reset-adapter.js /dev/ttyUSB0       # Linux
+ *       node examples/reset-adapter.js /dev/tty.usbserial-XXXX  # macOS
+ *       node examples/reset-adapter.js COM3               # Windows
  *
  *  ── What it does ──────────────────────────────────────────
  *

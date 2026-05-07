@@ -17,12 +17,12 @@
  *  ── How to run ────────────────────────────────────────────
  *
  *  Auto-detect serial port:
- *       npx ts-node examples/clone-compat.ts
+ *       node examples/clone-compat.js
  *
  *  Specify port manually:
- *       npx ts-node examples/clone-compat.ts /dev/ttyUSB0       # Linux
- *       npx ts-node examples/clone-compat.ts /dev/tty.usbserial-XXXX  # macOS
- *       npx ts-node examples/clone-compat.ts COM3               # Windows
+ *       node examples/clone-compat.js /dev/ttyUSB0       # Linux
+ *       node examples/clone-compat.js /dev/tty.usbserial-XXXX  # macOS
+ *       node examples/clone-compat.js COM3               # Windows
  *
  *  ── Clone Compatibility Modes ────────────────────────────
  *

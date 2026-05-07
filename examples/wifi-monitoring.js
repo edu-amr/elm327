@@ -18,10 +18,10 @@
  *  ── How to run ────────────────────────────────────
  *
  *  Default (192.168.0.10:35000):
- *       npx ts-node examples/wifi-monitoring.ts
+ *       node examples/wifi-monitoring.js
  *
  *  Custom host and port:
- *       npx ts-node examples/wifi-monitoring.ts 192.168.1.100 35000
+ *       node examples/wifi-monitoring.js 192.168.1.100 35000
  *
  *  Stop with Ctrl+C at any time.
  *
