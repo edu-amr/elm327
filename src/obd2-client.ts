@@ -115,6 +115,7 @@ export class OBD2Client extends EventEmitter {
           // Exponential backoff: 1s, 2s, 4s, 8s... up to 30s
           const baseDelay = 1000;
           const maxDelay = 30000;
+          const maxAttempts = 10; // Limit reconnection attempts
           let attempt = 0;
 
           const attemptReconnect = async () => {
@@ -124,8 +125,22 @@ export class OBD2Client extends EventEmitter {
               this._manualDisconnect = false;
               attempt = 0; // Reset on success
               this.emit('reconnected');
-            } catch {
+            } catch (error) {
               attempt++;
+              const message = error instanceof Error ? error.message : String(error);
+
+              // Stop if vehicle is off (UNABLE TO CONNECT)
+              if (message.includes('UNABLE TO CONNECT') || message.includes('Vehicle not responding')) {
+                this.emit('error', new ConnectionError('Vehicle appears to be off. Reconnection stopped.'));
+                return;
+              }
+
+              // Stop after max attempts
+              if (attempt >= maxAttempts) {
+                this.emit('error', new ConnectionError(`Reconnection failed after ${maxAttempts} attempts.`));
+                return;
+              }
+
               const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
               this.reconnectTimer = setTimeout(() => {
                 this.reconnectTimer = undefined;
