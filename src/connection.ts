@@ -455,6 +455,22 @@ export abstract class OBD2Connection extends EventEmitter {
       }
       await this.delay(isLenient ? 200 : 100);
 
+      // ATCS0 - Disable checksums (for legacy protocols ISO 9141/KWP)
+      // Only send if NOT using CAN protocol (CAN doesn't use checksums)
+      // This prevents checksum bytes from appearing in the payload
+      try {
+        const protocol = await this.sendCommand('ATDP');
+        const protocolClean = this.cleanResponse(protocol).toUpperCase();
+        // If NOT a CAN protocol (no "CAN" in name), disable checksums
+        if (!protocolClean.includes('CAN')) {
+          await this.sendCommand('ATCS0');
+        }
+      } catch (e) {
+        if (isStrict) throw e;
+        console.warn('ATCS0 failed (legacy protocol only):', e instanceof Error ? e.message : e);
+      }
+      await this.delay(isLenient ? 200 : 100);
+
       // Configure Flow Control for ISO-TP multiframe (only if not in minimal mode)
       if (!isMinimal && this.config.flowControl) {
         const fc = this.config.flowControl;
