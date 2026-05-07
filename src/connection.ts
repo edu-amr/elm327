@@ -288,7 +288,7 @@ export abstract class OBD2Connection extends EventEmitter {
   /**
    * Cleans a response by removing common ELM327 artifacts.
    * Uses fast string operations instead of regex for better performance.
-   * Removes \r, \n, >, and trims whitespace.
+   * Removes \r, \n, >, and normalizes spaces (no double spaces).
    */
   protected cleanResponse(response: string): string {
     // Fast removal of trailing '>' without regex
@@ -298,13 +298,18 @@ export abstract class OBD2Connection extends EventEmitter {
       cleaned = cleaned.substring(0, lastGT);
     }
 
-    // Fast removal of \r and \n using indexOf loops (no regex allocation)
+    // Fast removal of \r and \n, normalize spaces (no double spaces)
     let result = '';
+    let prevChar = '';
     for (let i = 0; i < cleaned.length; i++) {
       const ch = cleaned[i]!;
-      if (ch !== '\r' && ch !== '\n') {
-        result += ch;
-      }
+      if (ch === '\r' || ch === '\n') continue;
+
+      // Skip if current is space and previous was also space (normalize)
+      if (ch === ' ' && prevChar === ' ') continue;
+
+      result += ch;
+      prevChar = ch;
     }
 
     return result.trim();
