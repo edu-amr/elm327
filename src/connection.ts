@@ -437,6 +437,16 @@ export abstract class OBD2Connection extends EventEmitter {
         }
         await this.delay(isLenient ? 200 : 100);
 
+        // ATCS0 - Disable checksums (for legacy protocols ISO 9141/KWP)
+        // Only in non-minimal mode (essential for proper data in legacy protocols)
+        try {
+          await this.sendCommand('ATCS0');
+        } catch (e) {
+          if (isStrict) throw e;
+          console.warn('ATCS0 failed (legacy protocol only):', e instanceof Error ? e.message : e);
+        }
+        await this.delay(isLenient ? 200 : 100);
+
         // ATH1 - Headers on (needed for ISO-TP, may fail on old clones)
         try {
           await this.sendCommand('ATH1');
