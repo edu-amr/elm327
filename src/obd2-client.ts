@@ -876,8 +876,8 @@ export class OBD2Client extends EventEmitter {
   private parseDTCs(response: string): string[] {
     const dtcs: string[] = [];
     const clean = this.cleanResponse(response);
-    // Use proper byte pair matching (pairs of 2 hex chars)
-    const bytes = clean.match(/..?/g) || [];
+    // Use proper byte pair matching (always 2 chars per byte)
+    const bytes = clean.match(/.{2}/g) || [];
 
     // Skip mode response byte (43 = 0x40 + 3)
     for (let i = 1; i < bytes.length - 1; i += 2) {
