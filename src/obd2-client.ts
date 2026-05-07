@@ -32,6 +32,7 @@ export class OBD2Client extends EventEmitter {
   private heartbeatTimer?: NodeJS.Timeout;
   private lastCommandTime = Date.now();
   private readonly heartbeatIntervalMs = 20000; // 20 seconds
+  private _canDataHandler?: (data: string) => void;
 
   constructor(private config: ConnectionConfig) {
     super();
@@ -971,10 +972,13 @@ export class OBD2Client extends EventEmitter {
       throw new ConnectionError('Not connected to OBD2 adapter');
     }
 
-    // Forward canData events from connection
-    this.connection.on('canData', (data: string) => {
+    // Save handler reference to remove later
+    this._canDataHandler = (data: string) => {
       this.emit('canData', data);
-    });
+    };
+
+    // Forward canData events from connection
+    this.connection.on('canData', this._canDataHandler);
 
     await this.connection.startMonitor();
   }
@@ -993,10 +997,13 @@ export class OBD2Client extends EventEmitter {
       throw new ConnectionError('Not connected to OBD2 adapter');
     }
 
-    // Forward canData events from connection
-    this.connection.on('canData', (data: string) => {
+    // Save handler reference to remove later
+    this._canDataHandler = (data: string) => {
       this.emit('canData', data);
-    });
+    };
+
+    // Forward canData events from connection
+    this.connection.on('canData', this._canDataHandler);
 
     await this.connection.startMonitorWithFilter(canId);
   }
@@ -1009,6 +1016,13 @@ export class OBD2Client extends EventEmitter {
     if (!this.connection) {
       return;
     }
+
+    // Remove canData listener to avoid duplicates
+    if (this._canDataHandler) {
+      this.connection.off('canData', this._canDataHandler);
+      this._canDataHandler = undefined;
+    }
+
     await this.connection.stopMonitor();
   }
 
