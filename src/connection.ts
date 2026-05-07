@@ -311,6 +311,10 @@ export abstract class OBD2Connection extends EventEmitter {
       cleaned = cleaned.substring(0, lastGT);
     }
 
+    // Remove SEARCHING... and BUS INIT... artifacts (adapter protocol detection)
+    // These can appear in the middle of responses
+    cleaned = cleaned.replace(/SEARCHING\.+\s*/gi, '').replace(/BUS INIT\.+\s*/gi, '');
+
     // Fast removal of \r and \n, normalize spaces (no double spaces)
     let result = '';
     let prevChar = '';
