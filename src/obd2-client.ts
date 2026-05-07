@@ -744,8 +744,9 @@ export class OBD2Client extends EventEmitter {
       }
 
       // Parse the response using the command's decoder if available
+      // Use Mode 01 lookup (commands are defined as Mode 01, decoders are the same)
       const pidHex = pid.toString(16).toUpperCase().padStart(2, '0');
-      const command = getCommandByPid(`02${pidHex}`); // Mode 02 + PID
+      const command = getCommandByPid(`01${pidHex}`); // Mode 01 + PID (same decoder)
 
       let value: number | string | boolean = 0;
       let unit = '';
