@@ -661,8 +661,9 @@ export abstract class OBD2Connection extends EventEmitter {
   }
 
   /**
-   * Monitor mode with callback (AT MP - Monitor with specific PID filter).
-   * Monitors only frames matching the specified CAN ID pattern.
+   * Monitor mode with filter (AT CF - CAN Filter + AT CM - CAN Mask).
+   * Filters frames by specific CAN ID (not PID filter like AT MP).
+   * Use stopMonitor() to exit this mode.
    */
   async startMonitorWithFilter(canId: string): Promise<void> {
     if (!this.isInitialized) {
@@ -670,18 +671,37 @@ export abstract class OBD2Connection extends EventEmitter {
     }
 
     try {
-      // Set the monitor filter
-      await this.sendCommand(`AT MP ${canId}`);
+      // Exit any existing monitor mode first
+      await this.sendRaw(String.fromCharCode(0x1b));
       await this.delay(100);
 
-      // Enable headers
+      // Set CAN Filter (AT CF) - filter by CAN ID
+      await this.sendCommand(`AT CF ${canId}`);
+      await this.delay(100);
+
+      // Set CAN Mask (AT CM) - FFF means exact match
+      await this.sendCommand('AT CM FFF');
+      await this.delay(100);
+
+      // Enable headers to see CAN IDs
       await this.sendCommand('ATH1');
       await this.delay(100);
+
+      // Set monitor mode flag BEFORE sending ATMA
+      this.monitorMode = true;
 
       // Start monitoring (AT MA)
       await this.sendRaw('ATMA');
     } catch (error) {
-      this.emit('debug', { message: 'ATMP + ATMA initiated' });
+      // ATMA doesn't return normally - TimeoutError is expected
+      if (error instanceof TimeoutError) {
+        this.emit('debug', { message: `AT CF/CM + ATMA initiated - monitoring ${canId}` });
+        return; // Success - monitoring is running
+      }
+
+      // Real errors should NOT be silenced
+      this.monitorMode = false; // Reset flag on real error
+      throw error; // Re-throw real errors
     }
   }
 }
