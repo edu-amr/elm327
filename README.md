@@ -120,7 +120,7 @@ const config: ConnectionConfig = {
   // Smart discovery will try multiple known UUIDs for clone support
   flowControl: {
     enabled: true,
-    flowControlHeader: '0x7E0', // CAN ID for flow control
+    header: '0x7E0', // CAN ID for flow control
   },
 };
 
@@ -232,11 +232,12 @@ await client.getProtocolInfo();            // Get protocol information
 await client.sendDiagnosticRequest(config); // Send custom diagnostic request
 ```
 
-##### CAN Bus Monitoring (NEW!)
+##### CAN Bus Monitoring
 
 ```typescript
 await client.startCANMonitor();            // Start monitoring all CAN traffic (AT MA)
 await client.stopCANMonitor();             // Stop CAN monitoring
+await client.startCANMonitorWithFilter('7E8'); // Monitor only frames matching CAN ID (AT CF + AT CM)
 // Note: Use Flow Control configuration for controlled CAN communication
 ```
 
