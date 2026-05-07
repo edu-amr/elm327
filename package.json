@@ -1,6 +1,6 @@
 {
   "name": "elm327",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Node.js/TypeScript library for ELM327 OBD2 adapters over USB, Bluetooth and WiFi",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
