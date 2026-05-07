@@ -46,6 +46,12 @@ export abstract class OBD2Connection extends EventEmitter {
   protected validateResponse(response: string): void {
     const clean = response.trim().toUpperCase();
 
+    // SEARCHING... means the adapter is still trying to detect protocol
+    // Don't throw - just return and let the command wait for a real response
+    if (clean.includes('SEARCHING')) {
+      return; // Don't throw - adapter is still working
+    }
+
     if (clean.includes('UNABLE TO CONNECT')) {
       throw new ConnectionError(`Unable to connect to vehicle: ${clean}`);
     }
