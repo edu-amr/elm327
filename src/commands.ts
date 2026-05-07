@@ -207,18 +207,24 @@ export const OBD2_COMMANDS: Record<string, OBD2Command> = {
       const bytes = extractDataBytes(data, '011C');
       if (bytes.length === 0) return 'Unknown';
 
-      const byte = parseInt(bytes[0]!, 16);
-      const standards: string[] = [];
-      if ((byte & 0x01) !== 0) standards.push('OBD-II');
-      if ((byte & 0x02) !== 0) standards.push('OBD');
-      if ((byte & 0x04) !== 0) standards.push('OBD-II');
-      if ((byte & 0x08) !== 0) standards.push('OBD-I');
-      if ((byte & 0x10) !== 0) standards.push('Non-OBD');
-      if ((byte & 0x20) !== 0) standards.push('EOBD');
-      if ((byte & 0x40) !== 0) standards.push('EOBD+');
-      if ((byte & 0x80) !== 0) standards.push('JOBD');
-
-      return standards.length > 0 ? standards.join(', ') : 'None';
+      const value = parseInt(bytes[0]!, 16);
+      // PID 011C returns a single byte value (1=OBD-II CARB, 2=OBD EPA, etc.)
+      // NOT a bitmask!
+      const map: Record<number, string> = {
+        1: 'OBD-II (CARB)',
+        2: 'OBD (EPA)',
+        3: 'OBD + OBD-II',
+        4: 'OBD-I',
+        5: 'Not OBD compliant',
+        6: 'EOBD',
+        7: 'EOBD + OBD-II',
+        9: 'OBD + EOBD',
+        10: 'JOBD',
+        11: 'JOBD + OBD-II',
+        12: 'JOBD + EOBD',
+        13: 'JOBD + OBD-II + EOBD',
+      };
+      return map[value] || `Unknown (${value})`;
     },
   },
 
