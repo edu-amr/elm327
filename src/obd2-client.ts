@@ -482,8 +482,9 @@ export class OBD2Client extends EventEmitter {
     const supportedPids: string[] = [];
     const cleanResponse = response.replace(/[\r\n>]/g, '').replace(/\s/g, '');
 
-    // Extract data portion (skip response mode byte 41)
-    const dataStart = 2; // Skip "41"
+    // Extract data portion (skip "41" + PID byte = 4 chars total)
+    // Response format: 41[PID][data...] -> skip first 4 chars (41 + 2-char PID)
+    const dataStart = 4; // Skip "41" + PID (e.g., "4100", "4120", etc.)
     const data = cleanResponse.substring(dataStart);
 
     // Validate minimum length (need at least 8 hex chars = 4 bytes)
