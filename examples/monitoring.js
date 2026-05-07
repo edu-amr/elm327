@@ -46,7 +46,6 @@
  * ============================================================
  */
 
-import { OBD2Client } from '../src/index';
 const { OBD2Client } = require('../dist');
 
 async function main() {

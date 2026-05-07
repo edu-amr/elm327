@@ -41,7 +41,6 @@
  * ============================================================
  */
 
-import { OBD2Client, listSerialPorts } from '../src/index';
 const { listSerialPorts, OBD2Client } = require('../dist');
 
 async function main() {
