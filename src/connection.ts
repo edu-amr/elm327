@@ -624,14 +624,22 @@ export abstract class OBD2Connection extends EventEmitter {
       await this.delay(100);
 
       // Set monitor mode flag BEFORE sending ATMA
+      // This ensures incoming data goes to handleIncomingData correctly
       this.monitorMode = true;
 
       // Start monitoring all traffic (AT MA)
       // This command doesn't return until we send an Escape
       await this.sendRaw('ATMA');
     } catch (error) {
-      // ATMA doesn't return normally - this is expected
-      this.emit('debug', { message: 'ATMA initiated - monitoring started' });
+      // ATMA doesn't return normally - TimeoutError is expected
+      if (error instanceof TimeoutError) {
+        this.emit('debug', { message: 'ATMA initiated - monitoring started' });
+        return; // Success - monitoring is running
+      }
+
+      // Real errors should NOT be silenced
+      this.monitorMode = false; // Reset flag on real error
+      throw error; // Re-throw real errors
     }
   }
 
