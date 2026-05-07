@@ -1,6 +1,6 @@
 {
   "name": "elm327",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Node.js/TypeScript library for ELM327 OBD2 adapters over USB, Bluetooth and WiFi",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -37,6 +37,8 @@
     "example:freeze-frame:js": "npm run build && node examples/freeze-frame.js",
     "example:pid-scanner:js": "npm run build && node examples/pid-scanner.js",
     "example:reset-adapter:js": "npm run build && node examples/reset-adapter.js",
+    "example:logging": "npx tsx examples/logging-example.ts",
+    "example:logging:js": "npm run build && node examples/logging-example.js",
     "publish:npm": "npm publish",
     "publish:github": "npm publish --registry=https://npm.pkg.github.com",
     "prepare": "husky"

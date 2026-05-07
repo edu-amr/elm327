@@ -46,7 +46,7 @@
  * ============================================================
  */
 
-import { OBD2Client } from '../src/index';
+import { LogFormat, OBD2Client } from '../src/index';
 
 async function main(): Promise<void> {
   const port = process.argv[2];
@@ -73,6 +73,12 @@ async function main(): Promise<void> {
   };
 
   const client = new OBD2Client(config);
+
+  // Enable file logging (disabled by default)
+  client.enableLogger({
+    filePath: './monitoring.log',
+    format: LogFormat.PRETTY,
+  });
 
   client.on('connected', () => console.log('[✓] Connected to adapter'));
   client.on('ready', (info) => {
@@ -116,8 +122,10 @@ async function main(): Promise<void> {
 
   process.on('SIGINT', async () => {
     console.log('');
-    console.log('Stopping polling...');
+    console.log('Stopping monitoring...');
     client.stopPolling();
+    client.disableLogger();
+    console.log('Log saved to: monitoring.log');
     await client.disconnect();
     process.exit(0);
   });
