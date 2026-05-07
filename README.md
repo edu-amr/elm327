@@ -20,6 +20,7 @@ A comprehensive Node.js library for communicating with OBD2 (On-Board Diagnostic
 - **Exponential Backoff**: Smart reconnection with increasing delays
 - **NRC Parsing**: Human-readable Negative Response Code messages
 - **BLE Smart Discovery**: Multiple UUID patterns for clone adapter support
+- **File Logging**: Persistent logging to file with RAW, PRETTY, or JSON formats
 
 ## Installation
 
@@ -251,7 +252,70 @@ client.stopPolling();                      // Stop polling
 client.setAutoReconnect(enabled);         // Enable/disable auto-reconnect with exponential backoff
 ```
 
- #### Events
+##### Logging Methods
+
+The logger is **disabled by default**. Enable it to write logs to a file:
+
+```typescript
+import { OBD2Client, LogFormat, LogLevel } from 'elm327';
+
+const client = new OBD2Client(config);
+
+// Enable logging with PRETTY format (NestJS-style)
+client.enableLogger({
+  filePath: './obd2.log',
+  format: LogFormat.PRETTY,
+});
+
+// Or use RAW format (only the raw ELM327 response)
+client.enableLogger({
+  filePath: './obd2-raw.log',
+  format: LogFormat.RAW,
+});
+
+// Or use JSON format (one JSON object per line)
+client.enableLogger({
+  filePath: './obd2.json',
+  format: LogFormat.JSON,
+});
+
+// Filter by specific log levels
+client.enableLogger({
+  filePath: './obd2-errors.log',
+  levels: [LogLevel.ERROR, LogLevel.WARN],
+});
+
+// Change format at runtime
+client.setLoggerFormat(LogFormat.JSON);
+
+// Change levels at runtime
+client.setLoggerLevels([LogLevel.INFO, LogLevel.ERROR]);
+
+// Disable logging
+client.disableLogger();
+```
+
+###### Log Formats
+
+| Format | Description | Example |
+|--------|-------------|---------|
+| `LogFormat.RAW` | Raw ELM327 response only | `41 0C 1A F8` |
+| `LogFormat.PRETTY` | NestJS-style formatted log | `[2026-05-07 10:30:45] CMD [OBD2Client] 010C {"name":"ENGINE_RPM"}` |
+| `LogFormat.JSON` | One JSON object per line | `{"timestamp":"2026-05-07T10:30:45.000Z","level":"CMD","context":"OBD2Client","message":"010C","name":"ENGINE_RPM"}` |
+
+###### Log Levels
+
+| Level | Description |
+|-------|-------------|
+| `LogLevel.INFO` | General information (connect, disconnect, etc.) |
+| `LogLevel.DEBUG` | Debug information |
+| `LogLevel.WARN` | Warning messages |
+| `LogLevel.ERROR` | Error messages |
+| `LogLevel.RAW_DATA` | Raw data from adapter |
+| `LogLevel.COMMAND` | Commands sent to adapter |
+| `LogLevel.RESPONSE` | Responses received from adapter |
+
+  #### Events
 
 ```typescript
 client.on('connected', () => {});           // Connection established
@@ -529,6 +593,32 @@ await client.connect();
 
 const response = await client.queryCommand(customCommand);
 console.log(`Custom param: ${response.value} ${response.unit}`);
+```
+
+### Logging to File
+
+```typescript
+import { OBD2Client, LogFormat, LogLevel } from 'elm327';
+
+const client = new OBD2Client({
+  type: 'serial',
+  port: '/dev/ttyUSB0',
+});
+
+// Enable JSON logging
+client.enableLogger({
+  filePath: './logs/obd2-session.json',
+  format: LogFormat.JSON,
+});
+
+await client.connect();
+
+// All commands and responses will be logged
+const rpm = await client.getRPM();
+const dtcs = await client.getDTCs();
+
+await client.disconnect();
+// Logger is automatically disabled on disconnect
 ```
 
 ## Troubleshooting

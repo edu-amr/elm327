@@ -129,3 +129,35 @@ export interface DiagnosticResponse {
   totalSize?: number;
   timestamp: Date;
 }
+
+/**
+ * Log format options for file-based logging.
+ */
+export enum LogFormat {
+  RAW = 'raw',
+  PRETTY = 'pretty',
+  JSON = 'json',
+}
+
+/**
+ * Log level for filtering log entries.
+ */
+export enum LogLevel {
+  INFO = 'INFO',
+  DEBUG = 'DEBUG',
+  WARN = 'WARN',
+  ERROR = 'ERROR',
+  RAW_DATA = 'RAW_DATA',
+  COMMAND = 'COMMAND',
+  RESPONSE = 'RESPONSE',
+}
+
+/**
+ * Configuration for file-based logging.
+ */
+export interface LoggerConfig {
+  enabled?: boolean;
+  filePath: string;
+  format?: LogFormat;
+  levels?: LogLevel[];
+}

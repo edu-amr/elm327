@@ -13,16 +13,20 @@ export type {
   ConnectionConfig,
   DiagnosticRequestConfig,
   DiagnosticResponse,
+  LoggerConfig,
   OBD2AdapterInfo,
   OBD2Command,
   OBD2Response,
 } from './types';
 
+// Enums and error classes
+export { DiagnosticMode, LogFormat, LogLevel, OBD2Protocol } from './types';
+
+// Logger
+export { OBD2Logger } from './logger';
+
 // Erros
 export { ConnectionError, OBD2Error, ProtocolError, TimeoutError } from './errors';
-
-// Enums and error classes
-export { DiagnosticMode, OBD2Protocol } from './types';
 
 // Diagnostic utilities
 export { DiagnosticRequestBuilder, DiagnosticResponseParser } from './diagnostic-request';

@@ -3,12 +3,14 @@ import { BluetoothConnection } from './bluetooth-connection';
 import { OBD2_COMMANDS, getCommandByPid } from './commands';
 import { OBD2Connection } from './connection';
 import { ConnectionError, ProtocolError } from './errors';
+import { LogFormat, LogLevel, OBD2Logger } from './logger';
 import { SerialConnection } from './serial-connection';
 import {
   ConnectionConfig,
   DiagnosticMode,
   DiagnosticRequestConfig,
   DiagnosticResponse,
+  LoggerConfig,
   OBD2AdapterInfo,
   OBD2Command,
   OBD2Response,
@@ -33,6 +35,7 @@ export class OBD2Client extends EventEmitter {
   private lastCommandTime = Date.now();
   private readonly heartbeatIntervalMs = 20000; // 20 seconds
   private _canDataHandler?: (data: string) => void;
+  private logger: OBD2Logger | null = null;
 
   constructor(private config: ConnectionConfig) {
     super();
@@ -43,6 +46,31 @@ export class OBD2Client extends EventEmitter {
    */
   setAutoReconnect(enabled: boolean): void {
     this.autoReconnect = enabled;
+  }
+
+  enableLogger(config: LoggerConfig): void {
+    this.logger = new OBD2Logger(config);
+    this.logger.enable();
+    this.logger.info('OBD2Client', 'Logger enabled', {
+      filePath: config.filePath,
+      format: config.format ?? LogFormat.PRETTY,
+    });
+  }
+
+  disableLogger(): void {
+    if (this.logger) {
+      this.logger.info('OBD2Client', 'Logger disabled');
+      this.logger.disable();
+      this.logger = null;
+    }
+  }
+
+  setLoggerFormat(format: LogFormat): void {
+    this.logger?.setFormat(format);
+  }
+
+  setLoggerLevels(levels: LogLevel[]): void {
+    this.logger?.setLevels(levels);
   }
 
   /**
@@ -83,6 +111,7 @@ export class OBD2Client extends EventEmitter {
    * Connects to the OBD2 adapter and initializes it.
    */
   async connect(): Promise<void> {
+    this.logger?.info('OBD2Client', 'Connecting to adapter', { type: this.config.type });
     try {
       if (this.connection) {
         this.connection.removeAllListeners();
@@ -165,12 +194,19 @@ export class OBD2Client extends EventEmitter {
       this.adapterInfo = await this.connection.initialize();
       this.isInitialized = true;
 
+      this.logger?.info('OBD2Client', 'Connected and initialized', {
+        protocol: this.adapterInfo.protocol,
+        version: this.adapterInfo.version,
+        device: this.adapterInfo.device,
+      });
+
       // Start heartbeat to prevent WiFi/Bluetooth disconnection
       this.startHeartbeat();
 
       this.emit('ready', this.adapterInfo);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.logger?.error('OBD2Client', 'Connection failed', { error: message });
       throw new ConnectionError(`Connection failed: ${message}`);
     }
   }
@@ -269,6 +305,7 @@ export class OBD2Client extends EventEmitter {
    * Disconnects from the OBD2 adapter.
    */
   async disconnect(): Promise<void> {
+    this.logger?.info('OBD2Client', 'Disconnecting from adapter');
     this.stopPolling(); // Stop polling on disconnect
     this.stopHeartbeat(); // Stop heartbeat
     this._manualDisconnect = true;
@@ -308,8 +345,11 @@ export class OBD2Client extends EventEmitter {
     try {
       await this.connection.reset();
       this.emit('adapterReset');
-      console.log('[✓] Adapter reset successful');
+      this.logger?.info('OBD2Client', 'Adapter reset successful');
     } catch (error) {
+      this.logger?.error('OBD2Client', 'Failed to reset adapter', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       this.emit('error', error instanceof Error ? error : new Error(String(error)));
       throw new ConnectionError(
         `Failed to reset adapter: ${error instanceof Error ? error.message : String(error)}`,
@@ -321,6 +361,7 @@ export class OBD2Client extends EventEmitter {
    * Queries a command by its name (e.g., 'ENGINE_RPM').
    */
   async query(commandName: string): Promise<OBD2Response> {
+    this.logger?.logCommand('OBD2Client', commandName);
     if (!this.isInitialized) {
       throw new ConnectionError('Adapter not initialized. Call connect() first.');
     }
@@ -370,7 +411,9 @@ export class OBD2Client extends EventEmitter {
 
     try {
       this.lastCommandTime = Date.now(); // Update for heartbeat
+      this.logger?.logCommand('OBD2Client', command.pid, { name: command.name });
       const response = await this.connection.sendCommand(command.pid);
+      this.logger?.logResponse('OBD2Client', response, { command: command.name });
       const value = command.decoder(response);
 
       const result: OBD2Response = {
@@ -384,6 +427,7 @@ export class OBD2Client extends EventEmitter {
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.logger?.error('OBD2Client', `Failed to query ${command.name}`, { error: message });
       throw new ProtocolError(`Failed to query ${command.name}: ${message}`);
     }
   }
@@ -568,13 +612,20 @@ export class OBD2Client extends EventEmitter {
 
     try {
       this.lastCommandTime = Date.now(); // Update for heartbeat
+      this.logger?.logCommand('OBD2Client', `Mode ${config.mode} PID 0x${(config.pid ?? 0).toString(16).toUpperCase()}`, {
+        name: config.name,
+      });
       const response = await this.connection.sendDiagnosticRequest(config);
       if (!response) {
         throw new ProtocolError('No response received from diagnostic request');
       }
+      this.logger?.logResponse('OBD2Client', JSON.stringify(response), {
+        success: response.success,
+      });
       return response;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.logger?.error('OBD2Client', 'Diagnostic request failed', { error: message });
       throw new ProtocolError(`Diagnostic request failed: ${message}`);
     }
   }
@@ -714,10 +765,14 @@ export class OBD2Client extends EventEmitter {
     }
 
     try {
+      this.logger?.logCommand('OBD2Client', '03', { name: 'Get DTCs' });
       const response = await this.connection.sendCommand('03');
-      return this.parseDTCs(response);
+      const dtcs = this.parseDTCs(response);
+      this.logger?.logResponse('OBD2Client', response, { dtcCount: dtcs.length });
+      return dtcs;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.logger?.error('OBD2Client', 'Failed to get DTCs', { error: message });
       throw new ProtocolError(`Failed to get DTCs: ${message}`);
     }
   }
@@ -862,9 +917,12 @@ export class OBD2Client extends EventEmitter {
     }
 
     try {
+      this.logger?.logCommand('OBD2Client', '04', { name: 'Clear DTCs' });
       await this.connection.sendCommand('04');
+      this.logger?.info('OBD2Client', 'DTCs cleared successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.logger?.error('OBD2Client', 'Failed to clear DTCs', { error: message });
       throw new ProtocolError(`Failed to clear DTCs: ${message}`);
     }
   }
@@ -949,7 +1007,10 @@ export class OBD2Client extends EventEmitter {
     if (!this.connection) {
       throw new ConnectionError('Not connected to OBD2 adapter');
     }
-    return this.connection.sendCommand(command);
+    this.logger?.logCommand('OBD2Client', command, { raw: true });
+    const result = await this.connection.sendCommand(command);
+    this.logger?.logResponse('OBD2Client', result, { command });
+    return result;
   }
 
   /**
