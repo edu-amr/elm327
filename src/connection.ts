@@ -225,6 +225,13 @@ export abstract class OBD2Connection extends EventEmitter {
       const clean = line.trim().toUpperCase();
       if (!clean) continue;
 
+      // Discard SEARCHING... - adapter is still detecting protocol
+      // Don't pass to ResponseMatcher - just wait for real response
+      if (clean.includes('SEARCHING')) {
+        this.emit('debug', { message: 'Protocol detection in progress...' });
+        continue;
+      }
+
       // Parse bytes to check for ISO-TP frame types
       const bytes = clean.split(/\s+/).filter((b) => b.length > 0);
       if (bytes.length === 0) continue;
