@@ -709,14 +709,24 @@ export class MultiframeMessage {
       this._isComplete = true;
     }
 
-    // Check if complete
-    if (this._totalFrames > 0 && this.frames.size >= this._totalFrames) {
-      this._isComplete = true;
+    // Check if complete - verify ALL frames are present (contiguous)
+    if (this._totalFrames > 0) {
+      let allPresent = true;
+      for (let i = 0; i < this._totalFrames; i++) {
+        if (!this.frames.has(i)) {
+          allPresent = false;
+          break;
+        }
+      }
+      if (allPresent) {
+        this._isComplete = true;
+      }
     }
   }
 
   /**
    * Gets the combined payload from all frames in correct order
+   * Only returns frames that are actually present (skip missing)
    */
   getCombinedPayload(): string {
     const sortedFrames: string[] = [];
@@ -729,10 +739,22 @@ export class MultiframeMessage {
   }
 
   /**
-   * Checks if all frames have been received
+   * Checks if all frames have been received contiguously
+   * Verifies that frames 0, 1, 2... (totalFrames-1) are all present
    */
   get isComplete(): boolean {
-    return this._isComplete || (this._totalFrames > 0 && this.frames.size >= this._totalFrames);
+    if (this._isComplete) return true;
+    
+    if (this._totalFrames > 0) {
+      // Check if ALL frames from 0 to totalFrames-1 are present
+      for (let i = 0; i < this._totalFrames; i++) {
+        if (!this.frames.has(i)) return false;
+      }
+      this._isComplete = true;
+      return true;
+    }
+    
+    return false;
   }
 
   /**
