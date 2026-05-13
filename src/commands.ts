@@ -11,20 +11,18 @@ const hexToDec = (hex: string): number => parseInt(hex, 16);
  */
 function extractDataBytes(response: string, commandPid: string): string[] {
   const mode = commandPid.substring(0, 2);
+  const pid = commandPid.substring(2).toUpperCase();
   const expectedPrefix =
-    (parseInt(mode, 16) + 0x40).toString(16).toUpperCase() + commandPid.substring(2).toUpperCase();
+    (parseInt(mode, 16) + 0x40).toString(16).toUpperCase() + pid;
 
-  let data = response.toUpperCase();
+  const data = response.toUpperCase().replace(/\s+/g, '');
 
-  if (data.startsWith(expectedPrefix)) {
-    data = data.substring(expectedPrefix.length);
-  } else if (data.length > 4) {
-    data = data.substring(4);
-  }
+  const idx = data.indexOf(expectedPrefix);
+  const relevant = idx >= 0 ? data.substring(idx + expectedPrefix.length) : data;
 
   const bytes: string[] = [];
-  for (let i = 0; i + 1 < data.length; i += 2) {
-    const byte = data.substring(i, i + 2);
+  for (let i = 0; i + 1 < relevant.length; i += 2) {
+    const byte = relevant.substring(i, i + 2);
     if (/^[0-9A-F]{2}$/.test(byte)) bytes.push(byte);
   }
   return bytes;

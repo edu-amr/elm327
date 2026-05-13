@@ -151,6 +151,7 @@ const client = new OBD2Client(config);
 | `baudRate` | `number` | No | 38400 | Serial baud rate |
 | `timeout` | `number` | No | 5000 | Command timeout in milliseconds |
 | `lineEnding` | `string` | No | '\r' | Line ending character |
+| `maxLines` | `number` | No | 0 | Max log file lines (0 = unlimited). Oldest lines trimmed automatically |
 | `cloneCompatibility` | `'auto' \| 'strict' \| 'lenient' \| 'minimal'` | No | 'auto' | Clone compatibility mode |
 | `flowControl` | `object` | No | - | Flow control configuration |
 
@@ -284,6 +285,16 @@ client.enableLogger({
   filePath: './obd2-errors.log',
   levels: [LogLevel.ERROR, LogLevel.WARN],
 });
+
+// Limit file size (keeps only the newest 2000 lines, trims oldest)
+client.enableLogger({
+  filePath: './obd2.log',
+  format: LogFormat.JSON,
+  maxLines: 2000,
+});
+
+// Change maxLines at runtime
+client.setLoggerMaxLines(5000);
 
 // Change format at runtime
 client.setLoggerFormat(LogFormat.JSON);

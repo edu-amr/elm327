@@ -160,4 +160,6 @@ export interface LoggerConfig {
   filePath: string;
   format?: LogFormat;
   levels?: LogLevel[];
+  /** Maximum number of lines to keep in the log file. Oldest lines are trimmed first. Default: 0 (unlimited) */
+  maxLines?: number;
 }

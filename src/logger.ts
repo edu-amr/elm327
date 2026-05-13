@@ -1,5 +1,4 @@
-import { createWriteStream, WriteStream } from 'fs';
-import { appendFileSync, existsSync, mkdirSync } from 'fs';
+import { createWriteStream, WriteStream, appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 
 export enum LogFormat {
@@ -23,6 +22,7 @@ export interface LoggerConfig {
   filePath: string;
   format?: LogFormat;
   levels?: LogLevel[];
+  maxLines?: number;
 }
 
 interface LogEntry {
@@ -38,6 +38,7 @@ export class OBD2Logger {
   private filePath: string;
   private format: LogFormat;
   private levels: Set<LogLevel>;
+  private maxLines: number;
   private stream: WriteStream | null = null;
 
   constructor(config: LoggerConfig) {
@@ -45,6 +46,7 @@ export class OBD2Logger {
     this.filePath = config.filePath;
     this.format = config.format ?? LogFormat.PRETTY;
     this.levels = new Set(config.levels ?? Object.values(LogLevel));
+    this.maxLines = config.maxLines ?? 0;
   }
 
   enable(): void {
@@ -72,6 +74,10 @@ export class OBD2Logger {
 
   setLevels(levels: LogLevel[]): void {
     this.levels = new Set(levels);
+  }
+
+  setMaxLines(max: number): void {
+    this.maxLines = max;
   }
 
   isLevelEnabled(level: LogLevel): boolean {
@@ -193,8 +199,27 @@ export class OBD2Logger {
   private writeToFile(content: string): void {
     try {
       appendFileSync(this.filePath, content + '\n', 'utf8');
+      if (this.maxLines > 0) {
+        this.trimExcessLines();
+      }
     } catch {
       // Silently fail if file cannot be written
+    }
+  }
+
+  private trimExcessLines(): void {
+    try {
+      const data = readFileSync(this.filePath, 'utf8');
+      const lines = data.split('\n');
+      if (lines[lines.length - 1] === '') {
+        lines.pop();
+      }
+      if (lines.length > this.maxLines) {
+        const trimmed = lines.slice(lines.length - this.maxLines);
+        writeFileSync(this.filePath, trimmed.join('\n') + '\n', 'utf8');
+      }
+    } catch {
+      // Silently fail if file cannot be read/written
     }
   }
 
