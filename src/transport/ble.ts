@@ -18,6 +18,7 @@ interface BleServer {
 }
 interface BleDevice {
   gatt: { connect(): Promise<BleServer>; disconnect(): void };
+  addEventListener(type: 'gattserverdisconnected', listener: () => void): void;
 }
 interface BluetoothApi {
   requestDevice(options: {
@@ -61,6 +62,12 @@ export class BleTransport extends EventEmitter implements Transport {
     if (value) this.emit('data', this.decoder.decode(value));
   };
 
+  private readonly onDropped = (): void => {
+    if (!this.connected) return;
+    this.connected = false;
+    this.emit('close');
+  };
+
   get isOpen(): boolean {
     return this.connected;
   }
@@ -88,6 +95,7 @@ export class BleTransport extends EventEmitter implements Transport {
           this.writer = await service.getCharacteristic(profile.write);
           await notifier.startNotifications();
           notifier.addEventListener('characteristicvaluechanged', this.onValue);
+          device.addEventListener('gattserverdisconnected', this.onDropped);
           this.notifier = notifier;
           this.device = device;
           this.connected = true;

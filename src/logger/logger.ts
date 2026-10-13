@@ -29,6 +29,7 @@ export class FileLogger {
   private readonly maxLines: number;
   private stream: WriteStream | undefined;
   private closed = false;
+  private rotating: Promise<void> | undefined;
   private queue: string[] = [];
   private queuedBytes = 0;
   private lineCount = 0;
@@ -68,13 +69,15 @@ export class FileLogger {
     if (this.maxLines > 0 && this.lineCount >= this.maxLines) this.rotate();
   }
 
+  /** Flushes pending lines, waits for any rotation in progress and closes the file. */
   async close(): Promise<void> {
+    await this.rotating;
     this.flush();
+    await this.rotating;
     this.closed = true;
     const stream = this.stream;
     this.stream = undefined;
-    if (!stream) return;
-    await new Promise<void>((resolve) => stream.end(resolve));
+    if (stream) await new Promise<void>((resolve) => stream.end(resolve));
   }
 
   private rotate(): void {
@@ -82,15 +85,20 @@ export class FileLogger {
     if (!old) return;
     this.stream = undefined;
     this.lineCount = 0;
-    old.end(() => {
-      try {
-        renameSync(this.options.filePath, `${this.options.filePath}.1`);
-      } catch {
-        // rotation is best effort; keep appending to the current file
-      }
-      if (this.closed) return;
-      this.stream = this.openStream();
-      this.flush();
+    this.rotating = new Promise<void>((resolve) => {
+      old.end(() => {
+        try {
+          renameSync(this.options.filePath, `${this.options.filePath}.1`);
+        } catch {
+          // rotation is best effort; keep appending to the current file
+        }
+        this.rotating = undefined;
+        if (!this.closed) {
+          this.stream = this.openStream();
+          this.flush();
+        }
+        resolve();
+      });
     });
   }
 

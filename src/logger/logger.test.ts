@@ -65,4 +65,17 @@ describe('FileLogger', () => {
     await logger.close();
     expect(() => logger.log('info', 'late')).not.toThrow();
   });
+
+  it('close() during a rotation waits for it and loses no lines', async () => {
+    const file = join(dir, 'race.log');
+    const logger = new FileLogger({ filePath: file, format: 'raw', maxLines: 2 });
+    logger.log('info', 'a');
+    logger.log('info', 'b');
+    logger.flush();
+    logger.log('info', 'c');
+    await logger.close();
+
+    const all = [...read(`${file}.1`), ...(existsSync(file) ? read(file) : [])];
+    expect(all).toEqual(['a', 'b', 'c']);
+  });
 });
