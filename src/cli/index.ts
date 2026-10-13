@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { errorMessage } from '../errors';
 import { listSerialPorts } from '../transport';
-import { help, parseCliArgs } from './args';
+import { help, isComplete, parseCliArgs } from './args';
 import { t } from '../i18n';
 import { runDashboard } from './dashboard/dashboard';
 import { runWeb } from './web';
@@ -36,7 +36,7 @@ async function main(): Promise<number> {
   }
 
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
-  const skipQuestions = args.yes || args.once || !interactive;
+  const skipQuestions = args.yes || args.once || !interactive || isComplete(args.explicit);
   if (skipQuestions && !args.yes && !args.once && !args.explicit.has('connection')) {
     return (out(help()), 1);
   }

@@ -1,4 +1,4 @@
-import { help, parseCliArgs, parsePids, parseWifi, toCommandLine } from './args';
+import { help, isComplete, parseCliArgs, parsePids, parseWifi, toCommandLine } from './args';
 import type { ParsedArgs } from './args';
 import { setLocale } from '../i18n';
 import { PID_PRESETS } from '../session/options';
@@ -236,5 +236,24 @@ describe('toCommandLine', () => {
       'npx elm327 --demo --pids ENGINE_RPM,COOLANT_TEMP --interval 500',
     );
     expect(toCommandLine(parse(['--demo', '--pids', 'all']).options)).toContain('--pids all');
+  });
+});
+
+describe('isComplete', () => {
+  it('skips the questions once connection, view, signals and interval are given', () => {
+    expect(
+      isComplete(parse(['--demo', '--web', '--pids', 'all', '--interval', '100']).explicit),
+    ).toBe(true);
+    expect(
+      isComplete(
+        parse(['--serial', '/dev/x', '--terminal', '--pids', 'fuel', '--interval', '250']).explicit,
+      ),
+    ).toBe(true);
+  });
+
+  it('still asks when something essential is missing', () => {
+    expect(isComplete(parse(['--demo']).explicit)).toBe(false);
+    expect(isComplete(parse(['--demo', '--web', '--pids', 'all']).explicit)).toBe(false);
+    expect(isComplete(parse([]).explicit)).toBe(false);
   });
 });

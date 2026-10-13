@@ -294,9 +294,28 @@ export async function runWizard(args: ParsedArgs): Promise<CliOptions> {
   );
 
   if (!explicit.has('view')) options.view = await chooseView();
-  if (options.view === 'web' && !explicit.has('web')) options.web = await chooseWeb(options.web);
-
   if (!explicit.has('connection')) options = { ...options, ...(await chooseConnection()) };
+  if (!explicit.has('pids')) options.pids = await chooseSignals();
+  if (!explicit.has('interval')) options.intervalMs = await chooseInterval();
+
+  const advanced = await confirm(t('wizard.advanced'), false);
+  if (advanced) options = await chooseAdvanced(options, explicit);
+
+  process.stdout.write(
+    `\n${theme.muted(t('wizard.nextTime'))}\n  ${theme.accent(toCommandLine(options))}\n\n`,
+  );
+  if (!(await confirm(t('wizard.start')))) process.exit(0);
+  return options;
+}
+
+/** Everything that does not show on the dashboard: network, simulator or adapter, logs, report. */
+async function chooseAdvanced(
+  start: CliOptions,
+  explicit: ParsedArgs['explicit'],
+): Promise<CliOptions> {
+  let options = { ...start };
+
+  if (options.view === 'web' && !explicit.has('web')) options.web = await chooseWeb(options.web);
 
   const { connection } = options;
   if (connection.type === 'simulator') {
@@ -307,8 +326,6 @@ export async function runWizard(args: ParsedArgs): Promise<CliOptions> {
     options.connection = { ...connection, cloneCompatibility: await chooseCompatibility() };
   }
 
-  if (!explicit.has('pids')) options.pids = await chooseSignals();
-  if (!explicit.has('interval')) options.intervalMs = await chooseInterval();
   options = { ...options, ...(await chooseBehavior(options, explicit)) };
 
   if (!explicit.has('log')) {
@@ -320,10 +337,5 @@ export async function runWizard(args: ParsedArgs): Promise<CliOptions> {
     if (jsonFile) options.jsonFile = jsonFile;
     else delete options.jsonFile;
   }
-
-  process.stdout.write(
-    `\n${theme.muted(t('wizard.nextTime'))}\n  ${theme.accent(toCommandLine(options))}\n\n`,
-  );
-  if (!(await confirm(t('wizard.start')))) process.exit(0);
   return options;
 }

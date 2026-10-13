@@ -33,6 +33,12 @@ export type Explicit =
   | 'view'
   | 'web';
 
+/** The settings that decide what runs; once all four are on the command line nothing is asked. */
+const ESSENTIALS: Explicit[] = ['connection', 'view', 'pids', 'interval'];
+
+export const isComplete = (explicit: ReadonlySet<Explicit>): boolean =>
+  ESSENTIALS.every((setting) => explicit.has(setting));
+
 export interface ParsedArgs {
   help: boolean;
   version: boolean;
