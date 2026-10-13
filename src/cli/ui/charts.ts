@@ -321,3 +321,39 @@ export function columns(blocks: Array<{ lines: string[]; width: number }>, gap =
     blocks.map((block) => padEnd(block.lines[row] ?? '', block.width)).join(' '.repeat(gap)),
   );
 }
+
+// ---- tachometer ---------------------------------------------------------------
+
+/** 256-color ramp from green through yellow and orange to red. */
+const HEAT_RAMP = [46, 82, 118, 154, 190, 226, 220, 214, 208, 202, 196, 160] as const;
+
+/** Style for a position along a green -> yellow -> red scale (ratio 0..1). */
+export const heat = (ratio: number): Style =>
+  fg(HEAT_RAMP[Math.round(clamp(ratio, 0, 1) * (HEAT_RAMP.length - 1))]!);
+
+/**
+ * Shift-light style gauge: a row of vertical bars that light up left to right,
+ * each tinted by its position (green, yellow, red). Unlit bars stay dim.
+ */
+export function tachometer(ratio: number, width: number): string {
+  const segments = Math.max(1, Math.floor(width / 2));
+  const lit = Math.round(clamp(ratio, 0, 1) * segments);
+  return Array.from({ length: segments }, (_, i) =>
+    i < lit ? `${heat(i / Math.max(1, segments - 1))('┃')} ` : `${theme.faint('┃')} `,
+  ).join('');
+}
+
+/** Scale labels under a tachometer, e.g. "0  1  2 ... 7" spread over `width` columns. */
+export function tachometerScale(max: number, width: number, step = 1000): string {
+  const segments = Math.max(1, Math.floor(width / 2));
+  const cells = new Array<string>(segments * 2).fill(' ');
+  for (let value = 0; value <= max; value += step) {
+    const label = String(value / 1000);
+    const at = Math.min(
+      segments * 2 - label.length,
+      Math.round((value / max) * (segments - 1)) * 2,
+    );
+    [...label].forEach((char, i) => (cells[at + i] = char));
+  }
+  return theme.muted(cells.join(''));
+}

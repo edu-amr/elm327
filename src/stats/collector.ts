@@ -79,7 +79,6 @@ export class StatsCollector {
   private reconnects = 0;
   private bytesSent = 0;
   private bytesReceived = 0;
-  private latencySum = 0;
   private latencyMin = Infinity;
   private latencyMax = 0;
   private latencyLast = 0;
@@ -92,7 +91,6 @@ export class StatsCollector {
   recordExchange({ durationMs, ok, error }: Exchange): void {
     this.requests++;
     this.latencyLast = durationMs;
-    this.latencySum += durationMs;
     this.latencyMin = Math.min(this.latencyMin, durationMs);
     this.latencyMax = Math.max(this.latencyMax, durationMs);
     this.latencies.push(durationMs);
@@ -166,13 +164,15 @@ export class StatsCollector {
 
   private latencyStats(): LatencyStats {
     if (this.requests === 0) return EMPTY_LATENCY;
-    const sorted = this.latencies.toArray().sort((a, b) => a - b);
+    const recent = this.latencies.toArray();
+    const sorted = [...recent].sort((a, b) => a - b);
+    const avg = recent.reduce((sum, value) => sum + value, 0) / recent.length;
     const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
     return {
       last: this.latencyLast,
       min: this.latencyMin,
       max: this.latencyMax,
-      avg: this.latencySum / this.requests,
+      avg,
       p95,
     };
   }

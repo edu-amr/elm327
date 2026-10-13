@@ -21,6 +21,8 @@ import {
   resample,
   sparkline,
   table,
+  tachometer,
+  tachometerScale,
 } from './charts';
 
 describe('ansi helpers', () => {
@@ -168,5 +170,34 @@ describe('charts (colors off)', () => {
     expect(canvas.render()).toEqual(['⠁']);
     canvas.line(0, 0, 1, 3);
     expect(canvas.render()[0]).not.toBe('⠁');
+  });
+});
+
+describe('tachometer', () => {
+  beforeAll(() => setColorEnabled(false));
+  afterAll(() => setColorEnabled(true));
+
+  it('lights bars proportionally to the ratio; unlit bars are the same glyph in gray', () => {
+    setColorEnabled(true);
+    const unlit = (text: string) => text.split('38;5;240m').length - 1;
+    expect(stripAnsi(tachometer(0.5, 20))).toBe('┃ '.repeat(10));
+    expect(unlit(tachometer(0.5, 20))).toBe(5);
+    expect(unlit(tachometer(0, 6))).toBe(3);
+    expect(unlit(tachometer(2, 6))).toBe(0);
+    setColorEnabled(false);
+  });
+
+  it('labels the scale within the available width', () => {
+    const scale = tachometerScale(7000, 28);
+    expect(visibleWidth(scale)).toBe(28);
+    expect(scale.startsWith('0')).toBe(true);
+    expect(scale.trimEnd().endsWith('7')).toBe(true);
+  });
+
+  it('runs the heat ramp from green to red', () => {
+    setColorEnabled(true);
+    const lit = tachometer(1, 24);
+    expect(lit.indexOf('38;5;46m')).toBeLessThan(lit.indexOf('38;5;196m'));
+    expect(lit).toContain('38;5;226m');
   });
 });

@@ -45,6 +45,7 @@ export function fit(text: string, width: number): string {
   let visible = 0;
   let output = '';
   let index = 0;
+  let truncated = false;
   while (index < text.length) {
     ANSI_PATTERN.lastIndex = index;
     const match = ANSI_PATTERN.exec(text);
@@ -54,13 +55,20 @@ export function fit(text: string, width: number): string {
       continue;
     }
     const char = String.fromCodePoint(text.codePointAt(index)!);
-    if (visible === width) break;
+    if (visible === width) {
+      truncated = true;
+      break;
+    }
     output += char;
     visible++;
     index += char.length;
   }
-  return output + (colorEnabled && text.includes(ESC) ? `${ESC}0m` : '');
+  return output + (truncated && colorEnabled && text.includes(ESC) ? `${ESC}0m` : '');
 }
+
+/** Clips plain text to `width`, ending with an ellipsis when it did not fit. */
+export const ellipsize = (text: string, width: number): string =>
+  [...text].length <= width ? text : `${[...text].slice(0, Math.max(0, width - 1)).join('')}…`;
 
 export const padEnd = (text: string, width: number): string => {
   const clipped = fit(text, width);
