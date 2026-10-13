@@ -336,5 +336,9 @@
   "web.kpi.rate": "Vazão",
   "web.kpi.rate.ctx": "requisições por segundo",
   "web.mil.alert": "A luz da injeção está acesa",
-  "wizard.advanced": "Ajustar opções avançadas? (rede, simulador, logs, relatório)"
+  "wizard.advanced": "Ajustar opções avançadas? (rede, simulador, logs, relatório)",
+  "web.rail.overview": "Visão geral",
+  "web.rail.problems": "Problemas",
+  "web.rail.terminal": "Painel de tráfego (Ctrl+J)",
+  "web.panel.close": "Fechar painel"
 }

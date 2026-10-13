@@ -40,17 +40,13 @@ export function LinkHealth({ state }: { state: WireState }) {
       ? [{ name: 'idle', value: 1 }]
       : SLICES.map(({ key }) => ({ name: key, value: values[key] ?? 0 }));
 
-  const extra: Array<[string, string]> = [
-    [t('health.timeout'), String(stats.timeouts)],
-    [t('health.reconnect'), String(stats.reconnects)],
-    [t('web.stat.sent'), formatBytes(stats.bytesSent)],
-    [t('web.stat.received'), formatBytes(stats.bytesReceived)],
-  ];
-
   return (
-    <Panel title={t('panel.health')}>
-      <div className='grid grid-cols-[minmax(120px,0.9fr)_1fr] items-center gap-4'>
-        <div className='relative aspect-square w-full max-w-[200px] justify-self-center'>
+    <Panel
+      title={t('panel.health')}
+      hint={`↑ ${formatBytes(stats.bytesSent)} · ↓ ${formatBytes(stats.bytesReceived)}`}
+    >
+      <div className='grid h-full grid-cols-[auto_1fr] items-center gap-4'>
+        <div className='relative aspect-square h-full max-h-[160px] min-h-[84px]'>
           <EvilPieChart
             data={data}
             dataKey='value'
@@ -59,23 +55,23 @@ export function LinkHealth({ state }: { state: WireState }) {
             className='h-full w-full'
           >
             <EvilPieChart.Pie
-              innerRadius='68%'
+              innerRadius='70%'
               outerRadius='100%'
               paddingAngle={total === 0 ? 0 : 3}
-              cornerRadius={4}
+              cornerRadius={3}
               pieProps={{ isAnimationActive: false }}
             />
           </EvilPieChart>
-          <div className='pointer-events-none absolute inset-0 grid place-content-center text-center'>
-            <span className='num text-2xl font-bold'>
+          <div className='pointer-events-none absolute inset-0 grid place-content-center'>
+            <span className='num text-lg font-bold'>
               {total === 0 ? '–' : formatPercent(stats.successRate)}
             </span>
           </div>
         </div>
-        <ul className='grid gap-2 text-sm'>
+        <ul className='grid gap-1.5 text-[13px]'>
           {SLICES.map(({ key, color }) => (
             <li key={key} className='flex items-center gap-2'>
-              <i className='size-2.5 rounded-full' style={{ background: color }} />
+              <i className='size-2 rounded-[2px]' style={{ background: color }} />
               <span className='text-muted-foreground'>{t(`health.${key}`)}</span>
               <span className='num ml-auto font-semibold'>
                 <RollingNumber
@@ -86,16 +82,16 @@ export function LinkHealth({ state }: { state: WireState }) {
               </span>
             </li>
           ))}
+          <li className='flex gap-4 border-t border-border/70 pt-1.5 text-xs text-muted-foreground'>
+            <span>
+              {t('health.timeout')} <b className='num text-foreground'>{stats.timeouts}</b>
+            </span>
+            <span>
+              {t('health.reconnect')} <b className='num text-foreground'>{stats.reconnects}</b>
+            </span>
+          </li>
         </ul>
       </div>
-      <dl className='mt-4 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-border/70 pt-3 text-xs'>
-        {extra.map(([label, value]) => (
-          <div key={label} className='flex justify-between gap-2'>
-            <dt className='text-muted-foreground'>{label}</dt>
-            <dd className='num'>{value}</dd>
-          </div>
-        ))}
-      </dl>
     </Panel>
   );
 }

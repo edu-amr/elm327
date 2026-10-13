@@ -1,35 +1,51 @@
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { GridBackground } from '@/components/ui/grid-background';
-import { formatNumber } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import { sendAction } from '@/lib/api';
 import { useLive } from '@/lib/live';
-import { findPid, numericValue } from '@/lib/signal';
+import { usePersistent } from '@/lib/storage';
+import { ActivityRail } from '@/components/shell/activity-rail';
+import { BottomPanel } from '@/components/shell/bottom-panel';
+import type { PanelTab } from '@/components/shell/bottom-panel';
+import { StatusBar } from '@/components/shell/status-bar';
+import { TitleBar } from '@/components/shell/title-bar';
 import type { WireAction, WireMeta, WireState } from '../../../../src/session/wire';
-import { Dial } from './dial';
-import { DtcCard } from './dtc-card';
-import { KpiStrip } from './kpi-strip';
-import { LatencyCard } from './latency-card';
-import { LinkHealth } from './link-health';
-import { MiniGauges } from './mini-gauges';
-import { Panel } from './panel';
-import { ShiftLight } from './shift-light';
-import { SignalsTable } from './signals-table';
-import { TopBar } from './top-bar';
-import { TrafficCard } from './traffic-card';
-import { TrendCard } from './trend-card';
+import { Overview } from './overview';
+
+const MIN_PANEL = 110;
+const defaultPanelHeight = (): number =>
+  Math.round(Math.min(260, Math.max(120, window.innerHeight * 0.21)));
 
 export function Dashboard({ initial, meta }: { initial: WireState; meta: WireMeta }) {
   const { state, connected } = useLive(initial);
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const lastNotice = useRef(0);
+
+  const [open, setOpen] = usePersistent<boolean>(
+    'elm327-panel-open',
+    true,
+    (raw) => raw === 'true',
+  );
+  const [tab, setTab] = usePersistent<PanelTab>('elm327-panel-tab', 'traffic', (raw) =>
+    raw === 'problems' ? 'problems' : raw === 'traffic' ? 'traffic' : undefined,
+  );
+  const [height, setHeight] = usePersistent<number>(
+    'elm327-panel-height',
+    defaultPanelHeight(),
+    (raw) => {
+      const value = Number(raw);
+      return Number.isFinite(value) ? value : undefined;
+    },
+  );
 
   const act = (action: WireAction): void => {
     sendAction(action).catch((error: unknown) =>
       toast.error(error instanceof Error ? error.message : String(error)),
     );
   };
+  const problems = state.dtcs.codes.length;
+  const clampHeight = (value: number): number =>
+    Math.round(Math.min(Math.max(value, MIN_PANEL), window.innerHeight * 0.6));
 
   useEffect(() => {
     document.title = `ELM327 · ${state.title}`;
@@ -43,66 +59,58 @@ export function Dashboard({ initial, meta }: { initial: WireState; meta: WireMet
     }
   }, [state.notice, t]);
 
-  const rpm = numericValue(findPid(state, 'ENGINE_RPM'));
-  const speed = numericValue(findPid(state, 'VEHICLE_SPEED'));
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'j') {
+        event.preventDefault();
+        setOpen(!open);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+
+  const showProblems = (): void => {
+    setTab('problems');
+    setOpen(true);
+  };
 
   return (
-    <GridBackground size={44} speed={0} fade={70} className='min-h-dvh'>
-      <div className='px-4 pb-10 sm:px-6'>
-        <TopBar state={state} meta={meta} connected={connected} act={act} />
-        <div className='mx-auto max-w-[1760px] space-y-4'>
-          <ShiftLight
-            rpm={rpm}
-            max={meta.rpmMax}
-            label='RPM'
-            readout={rpm === undefined ? '–' : formatNumber(rpm, locale)}
-            unit='rpm'
-          />
-
-          <div className='grid gap-4 lg:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_minmax(260px,1fr)_minmax(0,1.9fr)]'>
-            <Panel title={t('hero.rpm')} className='items-center'>
-              <Dial
-                value={rpm}
-                max={meta.rpmMax}
-                label={t('hero.rpm')}
-                unit='rpm'
-                locale={locale}
-              />
-            </Panel>
-            <Panel title={t('hero.speed')} className='items-center'>
-              <Dial
-                value={speed}
-                max={meta.speedMax}
-                label={t('hero.speed')}
-                unit='km/h'
-                locale={locale}
-              />
-            </Panel>
-            <Panel title={t('panel.dashboard')} className='lg:col-span-2 xl:col-span-1'>
-              <MiniGauges state={state} meta={meta} />
-            </Panel>
-          </div>
-
-          <div className='grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'>
-            <SignalsTable
+    <div className='flex h-dvh flex-col bg-background max-lg:overflow-auto'>
+      <TitleBar state={state} meta={meta} connected={connected} act={act} />
+      <div className='flex min-h-0 flex-1'>
+        <ActivityRail
+          problems={problems}
+          panelOpen={open}
+          panelTab={tab}
+          onProblems={showProblems}
+          onTogglePanel={() =>
+            open && tab === 'traffic' ? setOpen(false) : (setTab('traffic'), setOpen(true))
+          }
+        />
+        <div className='flex min-w-0 flex-1 flex-col'>
+          <main className='min-h-0 flex-1 overflow-hidden max-lg:overflow-auto'>
+            <Overview
               state={state}
               meta={meta}
               onFocus={(name) => act({ type: 'focus', value: name })}
             />
-            <TrendCard state={state} meta={meta} />
-          </div>
-
-          <KpiStrip state={state} />
-
-          <div className='grid gap-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]'>
-            <LinkHealth state={state} />
-            <LatencyCard state={state} meta={meta} />
-            <DtcCard state={state} act={act} />
-          </div>
-
-          <TrafficCard state={state} />
+          </main>
+          {open ? (
+            <BottomPanel
+              state={state}
+              tab={tab}
+              height={clampHeight(height)}
+              problems={problems}
+              act={act}
+              onTab={setTab}
+              onResize={(value) => setHeight(clampHeight(value))}
+              onClose={() => setOpen(false)}
+            />
+          ) : null}
         </div>
       </div>
-    </GridBackground>
+      <StatusBar state={state} problems={problems} onProblems={showProblems} />
+    </div>
   );
 }

@@ -219,5 +219,9 @@
   "web.kpi.rate": "Throughput",
   "web.kpi.rate.ctx": "requests per second",
   "web.mil.alert": "Check-engine lamp is on",
-  "wizard.advanced": "Adjust advanced options? (network, simulator, logs, report)"
+  "wizard.advanced": "Adjust advanced options? (network, simulator, logs, report)",
+  "web.rail.overview": "Overview",
+  "web.rail.problems": "Problems",
+  "web.rail.terminal": "Traffic panel (Ctrl+J)",
+  "web.panel.close": "Close panel"
 }

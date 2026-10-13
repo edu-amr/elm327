@@ -12,9 +12,7 @@ export function TrendCard({ state, meta }: { state: WireState; meta: WireMeta })
   const { t, tOptional, locale } = useI18n();
   const name = state.focus;
   const pid = name ? findPid(state, name) : undefined;
-  const history = pid?.history;
-
-  const data = (history ?? []).map((value, index) => ({ sample: index, value }));
+  const data = (pid?.history ?? []).map((value, index) => ({ sample: index, value }));
   const range = name ? meta.gauges[name] : undefined;
   const numeric = typeof pid?.value === 'number' ? pid.value : undefined;
   const color =
@@ -24,49 +22,50 @@ export function TrendCard({ state, meta }: { state: WireState; meta: WireMeta })
     () => ({ value: { label, colors: { light: [color], dark: [color] } } }) satisfies ChartConfig,
     [label, color],
   );
-  const fmt = (n: number | undefined): string =>
-    n === undefined ? '–' : `${formatNumber(n, locale)} ${pid?.unit ?? ''}`.trim();
+  const fmt = (n: number | undefined): string => (n === undefined ? '–' : formatNumber(n, locale));
+
+  const stats = pid ? (
+    <span className='num flex gap-3'>
+      {(['min', 'avg', 'max'] as const).map((key) => (
+        <span key={key}>
+          <span className='text-muted-foreground/70'>{t(`trend.${key}`)}</span> {fmt(pid[key])}
+        </span>
+      ))}
+    </span>
+  ) : null;
 
   return (
     <Panel
       title={name ? `${t('panel.trend')} · ${label}` : t('panel.trend')}
-      hint={history ? t('web.window', { n: history.length }) : undefined}
-      className='h-full'
+      hint={stats}
+      bodyClassName='p-1'
     >
-      <div className='min-h-[250px] flex-1'>
-        {data.length > 1 ? (
-          <EvilAreaChart
-            data={data}
-            config={config}
-            animationType='none'
-            curveType='monotone'
-            className='h-full w-full'
-          >
-            <EvilAreaChart.Grid />
-            <EvilAreaChart.YAxis
-              width={52}
-              tickFormatter={(n: number) => formatNumber(n, locale)}
-              domain={['auto', 'auto']}
-            />
-            <EvilAreaChart.Tooltip />
-            <EvilAreaChart.Area dataKey='value' strokeWidth={2} strokeVariant='solid' />
-          </EvilAreaChart>
-        ) : (
-          <p className='grid h-full place-items-center text-muted-foreground'>
-            {t('trend.collecting')}
-          </p>
-        )}
+      <div className='relative h-full min-h-[90px]'>
+        <div className='absolute inset-0'>
+          {data.length > 1 ? (
+            <EvilAreaChart
+              data={data}
+              config={config}
+              animationType='none'
+              curveType='monotone'
+              className='h-full w-full'
+            >
+              <EvilAreaChart.Grid />
+              <EvilAreaChart.YAxis
+                width={46}
+                tickFormatter={(n: number) => formatNumber(n, locale)}
+                domain={['auto', 'auto']}
+              />
+              <EvilAreaChart.Tooltip />
+              <EvilAreaChart.Area dataKey='value' strokeWidth={1.8} strokeVariant='solid' />
+            </EvilAreaChart>
+          ) : (
+            <p className='grid h-full place-items-center text-muted-foreground'>
+              {t('trend.collecting')}
+            </p>
+          )}
+        </div>
       </div>
-      <dl className='mt-3 grid grid-cols-4 gap-2'>
-        {(['now', 'min', 'avg', 'max'] as const).map((key) => (
-          <div key={key} className='rounded-md border border-border/70 bg-muted/40 px-3 py-2'>
-            <dt className='label-caps'>{t(`trend.${key}`)}</dt>
-            <dd className='num mt-0.5 text-sm font-semibold'>
-              {fmt(key === 'now' ? numeric : pid?.[key])}
-            </dd>
-          </div>
-        ))}
-      </dl>
     </Panel>
   );
 }

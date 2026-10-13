@@ -17,8 +17,8 @@ import { toneFor } from '../../../../src/session/gauge-ranges';
 import type { WireMeta, WireState } from '../../../../src/session/wire';
 import { Panel } from './panel';
 
-const SPARK_W = 120;
-const SPARK_H = 26;
+const SPARK_W = 96;
+const SPARK_H = 20;
 
 interface SignalsTableProps {
   state: WireState;
@@ -35,27 +35,23 @@ export function SignalsTable({ state, meta, onFocus }: SignalsTableProps) {
 
   return (
     <Panel
-      title={`${t('panel.signals')} (${state.signals.length})`}
+      title={`${t('panel.signals')} · ${state.signals.length}`}
       hint={t('web.focusHint')}
-      className='min-h-0'
+      bodyClassName='p-0'
     >
-      <ScrollArea className='h-[420px] pr-3'>
-        <Table>
-          <TableHeader>
+      <ScrollArea className='h-full'>
+        <Table className='text-[12.5px]'>
+          <TableHeader className='sticky top-0 z-10 bg-card'>
             <TableRow className='hover:bg-transparent'>
-              <TableHead className='label-caps'>{t('table.signal')}</TableHead>
-              <TableHead className='label-caps text-right'>{t('table.value')}</TableHead>
-              <TableHead className='label-caps'>{t('table.unit')}</TableHead>
-              <TableHead className='label-caps hidden text-right md:table-cell'>
-                {t('table.avg')}
-              </TableHead>
-              <TableHead className='label-caps hidden text-right lg:table-cell'>
+              <TableHead className='label-caps h-7'>{t('table.signal')}</TableHead>
+              <TableHead className='label-caps h-7 text-right'>{t('table.value')}</TableHead>
+              <TableHead className='label-caps hidden h-7 text-right 2xl:table-cell'>
                 {t('table.min')}
               </TableHead>
-              <TableHead className='label-caps hidden text-right lg:table-cell'>
+              <TableHead className='label-caps hidden h-7 text-right 2xl:table-cell'>
                 {t('table.max')}
               </TableHead>
-              <TableHead className='label-caps w-[140px]'>{t('table.trend')}</TableHead>
+              <TableHead className='label-caps h-7 w-[104px]'>{t('table.trend')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -79,40 +75,42 @@ export function SignalsTable({ state, meta, onFocus }: SignalsTableProps) {
                   onClick={() => onFocus(name)}
                   className={cn(
                     'cursor-pointer',
-                    focused && 'bg-primary/10 shadow-[inset_3px_0_0_var(--amber)]',
+                    focused && 'bg-primary/10 shadow-[inset_2px_0_0_var(--amber)]',
                   )}
                 >
-                  <TableCell className='max-w-[24ch] truncate font-medium'>
+                  <TableCell className='max-w-[22ch] truncate py-1'>
                     {tOptional(`pid.${name}`, signalDescription(meta, name))}
                   </TableCell>
                   <TableCell
-                    className={cn('num text-right font-bold', stale && 'text-muted-foreground/60')}
+                    className={cn(
+                      'num py-1 text-right font-bold',
+                      stale && 'text-muted-foreground/60',
+                    )}
                     style={{ color }}
                   >
                     {pid ? formatValue(pid.value, locale) : '…'}
+                    <span className='ml-1 text-[11px] font-normal text-muted-foreground'>
+                      {pid?.unit ?? ''}
+                    </span>
                   </TableCell>
-                  <TableCell className='text-muted-foreground'>{pid?.unit ?? ''}</TableCell>
-                  <TableCell className='num hidden text-right text-muted-foreground md:table-cell'>
-                    {stat(pid?.avg)}
-                  </TableCell>
-                  <TableCell className='num hidden text-right text-muted-foreground lg:table-cell'>
+                  <TableCell className='num hidden py-1 text-right text-muted-foreground 2xl:table-cell'>
                     {stat(pid?.min)}
                   </TableCell>
-                  <TableCell className='num hidden text-right text-muted-foreground lg:table-cell'>
+                  <TableCell className='num hidden py-1 text-right text-muted-foreground 2xl:table-cell'>
                     {stat(pid?.max)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className='py-1'>
                     {pid && pid.history.length > 1 ? (
                       <svg
                         viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
                         preserveAspectRatio='none'
-                        className='h-[26px] w-[120px]'
+                        className='h-5 w-[96px]'
                         aria-hidden='true'
                       >
                         <path
                           d={sparklinePath(pid.history, SPARK_W, SPARK_H)}
                           fill='none'
-                          strokeWidth='1.6'
+                          strokeWidth='1.5'
                           strokeLinejoin='round'
                           vectorEffect='non-scaling-stroke'
                           className={stale ? 'stroke-muted-foreground/40' : 'stroke-primary'}
