@@ -26,7 +26,8 @@
     "test:coverage": "jest --coverage",
     "prepublishOnly": "npm run lint && npm test && npm run build",
     "prepare": "husky",
-    "web:dev": "npm run dev -w elm327-web"
+    "web:dev": "npm run dev -w elm327-web",
+    "postbuild": "node -e \"require('fs').chmodSync('dist/cli/index.js',0o755)\""
   },
   "keywords": [
     "elm327",
