@@ -1,20 +1,15 @@
 {
   "app.tagline": "painel OBD-II em tempo real",
-
-  "help.text": "elm327 — painel OBD-II em tempo real para adaptadores ELM327\n\nUso\n  npx elm327                         configuração interativa (recomendado)\n  npx elm327 --demo                  veículo simulado, sem precisar de hardware\n  npx elm327 --serial /dev/ttyUSB0   adaptador USB / Bluetooth pareado (serial)\n  npx elm327 --wifi 192.168.0.10     adaptador WiFi (porta padrão 35000)\n\nOpções\n  --demo, --simulate       usa o simulador de veículo embutido\n  --serial <caminho>       dispositivo serial (COM3, /dev/ttyUSB0, /dev/tty.OBDII-...)\n  --baud <taxa>            baud rate serial (padrão 38400)\n  --wifi <host[:porta]>    endereço do adaptador WiFi\n  --pids <conjunto>        essentials | fuel | temperatures | emissions | all | NOME,NOME\n  --interval <ms>          intervalo de leitura (padrão {interval})\n  --log <arquivo>          grava um arquivo de log\n  --json <arquivo>         grava um relatório JSON da sessão ao sair\n  --no-dtc                 não lê os códigos de falha\n  --no-reconnect           não reconecta automaticamente\n  --lang <código>          idioma da interface: {languages}\n  --list-ports             lista as portas seriais e sai\n  --once                   imprime um quadro do painel e sai\n  -y, --yes                pula a configuração interativa e usa os padrões\n  -v, --version            mostra a versão\n  -h, --help               mostra esta ajuda\n\nTeclas\n  q sair · p pausar · ←/→ escolher sinal do gráfico · +/- taxa de leitura\n  d ler códigos · c apagar códigos · l alternar tráfego · r resetar adaptador · s salvar relatório\n",
-
+  "help.text": "elm327 — painel OBD-II em tempo real para adaptadores ELM327\n\nUso\n  npx elm327                         configuração interativa (recomendado)\n  npx elm327 --demo                  veículo simulado (pergunta o que as flags não disseram)\n  npx elm327 --serial /dev/ttyUSB0   adaptador USB / Bluetooth pareado (serial)\n  npx elm327 --wifi 192.168.0.10     adaptador WiFi (porta padrão 35000)\n\nOpções\n  --demo, --simulate       usa o simulador de veículo embutido\n  --serial <caminho>       dispositivo serial (COM3, /dev/ttyUSB0, /dev/tty.OBDII-...)\n  --baud <taxa>            baud rate serial (padrão 38400)\n  --wifi <host[:porta]>    endereço do adaptador WiFi\n  --pids <conjunto>        essentials | fuel | temperatures | emissions | all | NOME,NOME\n  --interval <ms>          intervalo de leitura (padrão {interval})\n  --json <arquivo>         grava um relatório JSON da sessão ao sair\n  --log <arquivo>          grava um arquivo de log (veja --log-format, --log-level, --log-max-lines)\n  --log-format <fmt>       pretty | json | raw (padrão pretty)\n  --log-level <detalhe>    errors | traffic | all (padrão traffic)\n  --log-max-lines <n>      rotaciona o log após n linhas, 0 = nunca (padrão 100000)\n  --compat <modo>          compatibilidade do adaptador: auto | strict | lenient | minimal\n  --sim-errors <taxa>      simulador: fração de requisições que falham, de 0 a 1\n  --sim-dtc <códigos|none> simulador: códigos de falha armazenados, ex.: P0301,P0420\n  --no-dtc                 não lê os códigos de falha\n  --no-reconnect           não reconecta automaticamente\n  --lang <código>          idioma da interface: {languages}\n  --list-ports             lista as portas seriais e sai\n  --once                   imprime um quadro do painel e sai\n  -y, --yes                pula todas as perguntas e usa os padrões\n  -v, --version            mostra a versão\n  -h, --help               mostra esta ajuda\n\nTeclas\n  q sair · p pausar · ←/→ escolher sinal do gráfico · +/- taxa de leitura\n  d ler códigos · c apagar códigos · l alternar tráfego · r resetar adaptador · s salvar relatório\n",
   "error.positive": "--{flag} espera um número positivo",
   "error.wifi": "--wifi espera host ou host:porta",
   "error.lang": "Idioma \"{code}\" não suportado. Disponíveis: {languages}",
-
   "cli.noPorts": "Nenhuma porta serial encontrada.",
   "cli.sessionSaved": "Relatório da sessão salvo em",
-
   "prompt.multiHint": "(espaço marca, enter confirma)",
   "prompt.none": "nenhum",
   "prompt.yes": "Sim",
   "prompt.no": "Não",
-
   "wizard.connection.title": "Como você quer se conectar?",
   "wizard.connection.simulator": "Simulador",
   "wizard.connection.simulator.hint": "sem hardware, ótimo para conhecer",
@@ -42,23 +37,18 @@
   "wizard.extras.title": "Extras",
   "wizard.extras.dtc": "Ler códigos de falha (DTCs)",
   "wizard.extras.reconnect": "Reconectar automaticamente",
-  "wizard.extras.json": "Salvar relatório JSON da sessão ao sair",
-  "wizard.extras.log": "Gravar arquivo de log",
   "wizard.nextTime": "Da próxima vez, pule as perguntas com:",
   "wizard.start": "Iniciar o painel?",
-
   "preset.essentials": "Essenciais (RPM, velocidade, temperatura, carga, acelerador, combustível)",
   "preset.fuel": "Consumo (correções, fluxo de ar, vazão, lambda)",
   "preset.temperatures": "Temperaturas (arrefecimento, óleo, admissão, ambiente, catalisador)",
   "preset.emissions": "Emissões (sondas O2, EGR, EVAP, catalisador)",
-
   "status.connecting": "CONECTANDO",
   "status.live": "AO VIVO",
   "status.paused": "PAUSADO",
   "status.reconnecting": "RECONECTANDO",
   "status.offline": "OFFLINE",
   "header.up": "ativo",
-
   "panel.dashboard": "Painel",
   "panel.signals": "Sinais",
   "panel.trend": "Tendência",
@@ -66,7 +56,6 @@
   "panel.latency": "Latência",
   "panel.dtc": "Códigos de falha",
   "panel.traffic": "Tráfego",
-
   "table.signal": "Sinal",
   "table.value": "Valor",
   "table.unit": "Un.",
@@ -74,7 +63,6 @@
   "table.min": "Mín",
   "table.max": "Máx",
   "table.trend": "Tend.",
-
   "hero.rpm": "RPM",
   "hero.speed": "VELOCIDADE",
   "gauge.ENGINE_RPM": "RPM",
@@ -88,13 +76,11 @@
   "gauge.MAF_RATE": "MAF",
   "gauge.CONTROL_MODULE_VOLTAGE": "Bateria",
   "waiting": "Aguardando dados…",
-
   "trend.collecting": "Coletando amostras…",
   "trend.now": "agora",
   "trend.min": "mín",
   "trend.avg": "méd",
   "trend.max": "máx",
-
   "health.ok": "ok",
   "health.noData": "sem dado",
   "health.failed": "falhas",
@@ -104,7 +90,6 @@
   "latency.avg": "méd",
   "latency.p95": "p95",
   "latency.last": "últ",
-
   "dtc.milOn": "MIL ACESA",
   "dtc.milOff": "MIL apagada",
   "dtc.storedOne": "1 código armazenado",
@@ -112,7 +97,6 @@
   "dtc.none": "✔ Nenhum código de falha armazenado",
   "dtc.hint": "Pressione d para ler os códigos de falha",
   "dtc.checked": "lido às {time}",
-
   "key.quit": "sair",
   "key.pause": "pausar",
   "key.focus": "sinal",
@@ -124,7 +108,6 @@
   "key.save": "salvar",
   "confirm.clear": "Apagar todos os códigos de falha armazenados?",
   "confirm.hint": "(s/n)",
-
   "notice.reconnected": "Reconectado",
   "notice.polling": "Lendo a cada {ms} ms",
   "notice.saved": "Salvo em {file}",
@@ -135,7 +118,6 @@
   "notice.reset": "Adaptador resetado",
   "notice.resetFailed": "Falha ao resetar: {error}",
   "small": "Terminal pequeno demais: precisa de {needCols}x{needRows}, tem {cols}x{rows}",
-
   "pid.DTC_STATUS": "Status do monitor desde a limpeza dos códigos",
   "pid.FUEL_SYSTEM_STATUS": "Status do sistema de combustível 1",
   "pid.ENGINE_LOAD": "Carga calculada do motor",
@@ -187,7 +169,6 @@
   "pid.OIL_TEMP": "Temperatura do óleo do motor",
   "pid.INJECTION_TIMING": "Avanço da injeção de combustível",
   "pid.FUEL_RATE": "Consumo de combustível do motor",
-
   "dtc.P0100": "Falha no circuito do fluxo de ar (MAF)",
   "dtc.P0101": "Circuito do MAF fora da faixa/desempenho",
   "dtc.P0102": "Circuito do MAF com sinal baixo",
@@ -253,5 +234,45 @@
   "dtc.P0606": "Falha no processador do módulo de controle",
   "dtc.P0700": "Falha no sistema de controle da transmissão",
   "dtc.U0100": "Comunicação perdida com o módulo do motor (ECM/PCM)",
-  "dtc.U0101": "Comunicação perdida com o módulo da transmissão (TCM)"
+  "dtc.U0101": "Comunicação perdida com o módulo da transmissão (TCM)",
+  "locale.name": "Português (Brasil)",
+  "error.choice": "--{flag} deve ser um destes: {allowed}",
+  "cli.logSaved": "Log gravado em",
+  "wizard.language.title": "Language / Idioma",
+  "wizard.compat.title": "Como o seu adaptador se comporta?",
+  "wizard.compat.auto": "Detectar automaticamente",
+  "wizard.compat.auto.hint": "recomendado",
+  "wizard.compat.lenient": "Clone antigo ou barato",
+  "wizard.compat.lenient.hint": "esperas maiores, ignora comandos não suportados",
+  "wizard.compat.minimal": "Clone muito problemático",
+  "wizard.compat.minimal.hint": "somente os comandos essenciais",
+  "wizard.compat.strict": "ELM327 original",
+  "wizard.compat.strict.hint": "falha em qualquer erro de inicialização",
+  "wizard.sim.errors.title": "Simular erros de comunicação?",
+  "wizard.sim.errors.none": "Não",
+  "wizard.sim.errors.some": "De vez em quando (3% das requisições)",
+  "wizard.sim.errors.many": "Com frequência (15% das requisições)",
+  "wizard.sim.dtc": "Simular códigos de falha (P0301, P0420)?",
+  "wizard.behavior.title": "Comportamento",
+  "wizard.log.enable": "Salvar um arquivo de log?",
+  "wizard.log.format.title": "Formato do log?",
+  "wizard.log.format.pretty": "Texto legível",
+  "wizard.log.format.pretty.hint": "[hora] NÍVEL mensagem",
+  "wizard.log.format.json": "JSON por linha",
+  "wizard.log.format.json.hint": "um objeto JSON por linha, fácil de processar",
+  "wizard.log.format.raw": "Texto bruto do adaptador",
+  "wizard.log.format.raw.hint": "somente o que o adaptador enviou e recebeu",
+  "wizard.log.detail.title": "Quanto detalhe registrar?",
+  "wizard.log.detail.errors": "Somente avisos e erros",
+  "wizard.log.detail.traffic": "Comandos, respostas e erros",
+  "wizard.log.detail.traffic.hint": "recomendado",
+  "wizard.log.detail.all": "Tudo, inclusive depuração",
+  "wizard.log.file": "Caminho do arquivo de log",
+  "wizard.log.rotation.title": "Rotacionar o arquivo de log?",
+  "wizard.log.rotation.never": "Nunca (um arquivo que só cresce)",
+  "wizard.log.rotation.after": "Após {lines} linhas",
+  "wizard.log.rotation.hint": "as linhas antigas vão para <arquivo>.1",
+  "wizard.report.enable": "Salvar um relatório JSON da sessão ao sair?",
+  "wizard.report.hint": "estatísticas e todas as amostras",
+  "wizard.report.file": "Caminho do relatório"
 }

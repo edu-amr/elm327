@@ -91,11 +91,22 @@ describe('locale detection', () => {
     expect(resolveLocale(undefined)).toBeUndefined();
   });
 
-  it('prefers the explicit choice, then ELM327_LANG, then the system locale', () => {
-    expect(detectLocale('pt-BR', { LANG: 'en_US.UTF-8' })).toBe('pt-BR');
-    expect(detectLocale(undefined, { ELM327_LANG: 'pt', LANG: 'en_US.UTF-8' })).toBe('pt-BR');
-    expect(detectLocale(undefined, { LANG: 'pt_BR.UTF-8' })).toBe('pt-BR');
-    expect(detectLocale(undefined, { LANG: 'C' })).toBe('en');
-    expect(detectLocale(undefined, {})).toBe('en');
+  it('prefers the explicit choice, then ELM327_LANG, then the system language', () => {
+    const none = () => [];
+    expect(detectLocale('pt-BR', { LANG: 'en_US.UTF-8' }, none)).toBe('pt-BR');
+    expect(detectLocale(undefined, { ELM327_LANG: 'pt', LANG: 'en_US.UTF-8' }, none)).toBe('pt-BR');
+    expect(detectLocale(undefined, { LC_ALL: 'pt_BR.UTF-8', LANG: 'en_US.UTF-8' }, none)).toBe(
+      'pt-BR',
+    );
+    expect(detectLocale(undefined, { LANG: 'pt_BR.UTF-8' }, none)).toBe('pt-BR');
+    expect(detectLocale(undefined, { LANG: 'C' }, none)).toBe('en');
+    expect(detectLocale(undefined, {}, none)).toBe('en');
+  });
+
+  it('trusts the OS language over a generic LANG (macOS exports en_US even in Portuguese)', () => {
+    expect(detectLocale(undefined, { LANG: 'en_US.UTF-8' }, () => ['pt-BR', 'en-US'])).toBe(
+      'pt-BR',
+    );
+    expect(detectLocale(undefined, { LANG: 'pt_BR.UTF-8' }, () => ['fr-FR'])).toBe('pt-BR');
   });
 });

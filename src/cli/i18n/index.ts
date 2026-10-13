@@ -1,5 +1,6 @@
 import en from './locales/en.json';
 import ptBR from './locales/pt-BR.json';
+import { systemLanguages } from './system';
 
 export type TranslationKey = keyof typeof en;
 export type Catalog = Record<string, string>;
@@ -15,6 +16,9 @@ let active: Catalog = LOCALES[DEFAULT_LOCALE]!;
 
 export const availableLocales = (): string[] => Object.keys(LOCALES);
 
+/** The language's own name, e.g. "Português (Brasil)". */
+export const localeName = (code: string): string => LOCALES[code]?.['locale.name'] ?? code;
+
 /** Maps "pt_BR.UTF-8", "pt-br" or "pt" to a registered locale code. */
 export function resolveLocale(input: string | undefined): string | undefined {
   if (!input) return undefined;
@@ -26,19 +30,39 @@ export function resolveLocale(input: string | undefined): string | undefined {
   );
 }
 
-/** Picks a locale from an explicit choice, then ELM327_LANG, then the system environment. */
-export function detectLocale(explicit?: string, env: NodeJS.ProcessEnv = process.env): string {
-  const candidates = [explicit, env['ELM327_LANG'], env['LC_ALL'], env['LC_MESSAGES'], env['LANG']];
-  for (const candidate of candidates) {
-    const resolved = resolveLocale(candidate);
-    if (resolved) return resolved;
-  }
-  return DEFAULT_LOCALE;
+/**
+ * Picks a locale: explicit choice, then ELM327_LANG, LC_ALL and LC_MESSAGES, then
+ * the OS language, then LANG. Falls back to English.
+ */
+export function detectLocale(
+  explicit?: string,
+  env: NodeJS.ProcessEnv = process.env,
+  system: () => string[] = systemLanguages,
+): string {
+  const firstMatch = (candidates: Array<string | undefined>): string | undefined => {
+    for (const candidate of candidates) {
+      const resolved = resolveLocale(candidate);
+      if (resolved) return resolved;
+    }
+    return undefined;
+  };
+
+  return (
+    firstMatch([explicit, env['ELM327_LANG'], env['LC_ALL'], env['LC_MESSAGES']]) ??
+    firstMatch(system()) ??
+    firstMatch([env['LANG']]) ??
+    DEFAULT_LOCALE
+  );
 }
 
+let activeCode = DEFAULT_LOCALE;
+
 export function setLocale(code: string): void {
-  active = LOCALES[code] ?? LOCALES[DEFAULT_LOCALE]!;
+  activeCode = code in LOCALES ? code : DEFAULT_LOCALE;
+  active = LOCALES[activeCode]!;
 }
+
+export const currentLocale = (): string => activeCode;
 
 const interpolate = (template: string, params: Record<string, string | number>): string =>
   template.replace(/\{(\w+)\}/g, (match, name: string) => String(params[name] ?? match));
