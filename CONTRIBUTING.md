@@ -27,7 +27,9 @@ npm run lint && npm run typecheck && npm test
 
 **A new PID.** Add an entry to `src/protocol/pids.ts` using the SAE J1979 formula, add a case to `pids.test.ts`, and, if the simulator should answer it, an encoder in `src/simulator/encoding.ts` (the round-trip test checks encoder and decoder agree).
 
-**A new language.** Copy `src/cli/i18n/locales/en.json` to `<code>.json`, translate the values keeping `{placeholders}`, register it in `src/cli/i18n/index.ts`, run `npm test`. `pid.<NAME>` and `dtc.<CODE>` keys are optional.
+**A new language.** Copy `src/i18n/locales/en.json` to `<code>.json`, translate the values keeping `{placeholders}`, register it in `src/i18n/index.ts`, run `npm test`. `pid.<NAME>` and `dtc.<CODE>` keys are optional.
+
+**The web UI.** It lives in `web/` (Vite + TypeScript, no framework). Run `ELM327_WEB_TOKEN=dev npx elm327 --demo --web --no-open` in one terminal and `npm run web:dev` in another, then open `http://localhost:5173/?token=dev`. Keep chart math pure in `web/src/charts/scale.ts` so it stays testable, and share types with the server through `src/session/wire.ts` (use `import type` only).
 
 **An adapter quirk.** Reproduce it as a response sample, fix it in `src/adapter` or `src/protocol`, and describe the adapter in the pull request.
 

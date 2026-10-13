@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-10-13
+
+### Added
+
+- Web dashboard: `npx elm327 --web` (or choose it in the setup). Analog dials, heat-ramp tachometer,
+  interactive canvas charts, signal table with sparklines, link-health donut, latency histogram,
+  trouble-code cards with a confirmation dialog, traffic log, dark and light themes, English and
+  Brazilian Portuguese, responsive down to a phone. Built with Vite and TypeScript, no framework.
+- `--port`, `--host`, `--no-open`, `--terminal` flags and a view question in the setup.
+- HTTP + Server-Sent Events server with a per-run token, `Host` header validation against DNS
+  rebinding, no CORS and hardened headers. `--host 0.0.0.0` serves your network behind the token.
+- `Session` class shared by the terminal and web views; typed wire contract in `src/session/wire.ts`.
+
+### Changed
+
+- Translation catalogs moved to `src/i18n/locales` and now also serve the web UI.
+
 ## [2.0.1] - 2026-10-13
 
 ### Changed

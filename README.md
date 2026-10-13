@@ -1,6 +1,6 @@
 # elm327
 
-> ELM327 OBD-II library **and live terminal dashboard** for Node.js and TypeScript. Read RPM, speed, trouble codes and VIN over **USB serial, WiFi or Bluetooth**, or try everything without hardware using the built-in **vehicle simulator**.
+> ELM327 OBD-II library **with a live dashboard in your terminal or browser** for Node.js and TypeScript. Read RPM, speed, trouble codes and VIN over **USB serial, WiFi or Bluetooth**, or try everything without hardware using the built-in **vehicle simulator**.
 
 [![npm version](https://img.shields.io/npm/v/elm327.svg)](https://www.npmjs.com/package/elm327)
 [![npm downloads](https://img.shields.io/npm/dm/elm327.svg)](https://www.npmjs.com/package/elm327)
@@ -10,17 +10,25 @@
 
 ```bash
 npx elm327 --demo      # simulated car, nothing to plug in
+npx elm327 --demo --web   # same, as a web dashboard in your browser
 npx elm327             # interactive setup for your real adapter
 ```
 
-![elm327 live dashboard running against the built-in simulator](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard.jpg)
+**Terminal** (`npx elm327`)
+
+![elm327 terminal dashboard running against the built-in simulator](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard-terminal.jpg)
+
+**Web** (`npx elm327 --web`): dark and light themes, responsive down to a phone
+
+![elm327 web dashboard running against the built-in simulator](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard-web.jpg)
 
 The first v1 version of this project (library only) in action: <https://x.com/edu_amr_/status/2051821164889030664>.
 
 ## Highlights
 
+- **Two dashboards, same data**: pick the terminal or a web page when you start. The web version has analog dials, interactive charts with hover tooltips, clickable signals, a confirmation dialog for destructive actions, light and dark themes and a phone-friendly layout, with no framework and a ~10 KB (gzip) script.
 - **Live dashboard in your terminal**: tachometer strip with a green → yellow → red heat ramp, bar gauges, seven-segment readouts, braille line charts, a link-health donut, latency histogram, signal table with sparklines, trouble-code panel and a raw traffic log. Keyboard driven.
-- **Interactive setup** like `create-next-app`: pick the connection, the signals and the extras, then get the one-line command that reproduces your choices.
+- **Interactive setup** like `create-next-app`: pick the language, terminal or web, the connection, the signals and the extras, then get the one-line command that reproduces your choices.
 - **Works without a car**: the simulator emulates an ELM327 on a CAN vehicle (drive cycle, warm-up, DTCs, freeze frame, multi-frame VIN, two ECUs, optional bus errors).
 - **A real OBD-II client**: 67 Mode 01 PIDs, DTCs (stored, pending, permanent) with descriptions, freeze frame, VIN / calibration ID / ECU name, PID discovery, raw CAN monitor.
 - **Correct protocol handling**: ISO-TP multi-frame reassembly, 11/29-bit CAN headers, negative response codes, protocol detection and tolerant initialization for old v1.5 clones.
@@ -156,6 +164,7 @@ const client = new OBD2Client({
 ```
 npx elm327                         interactive setup (recommended)
 npx elm327 --demo                  simulated vehicle
+npx elm327 --web                   web dashboard instead of the terminal
 npx elm327 --serial /dev/ttyUSB0   USB or paired Bluetooth serial adapter
 npx elm327 --wifi 192.168.0.10     WiFi adapter
 ```
@@ -165,17 +174,26 @@ still asks about the language, logging, report and the other settings that do no
 dashboard. Use `-y` to skip every question. At the end it prints the one-line command that
 reproduces your answers.
 
-| Question (flag)                                                      | Choices                                                                         |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Language (`--lang`)                                                  | `en`, `pt-BR`; detected from `ELM327_LANG`, `LC_ALL`, the OS language, `LANG`   |
-| Connection (`--demo`, `--serial`, `--wifi`)                          | simulator, serial port and baud rate, WiFi host and port                        |
-| Adapter compatibility (`--compat`)                                   | `auto`, `lenient` (old clones), `minimal`, `strict`                             |
-| Simulator errors and trouble codes (`--sim-errors`, `--sim-dtc`)     | none, 3 %, 15 % of requests failing; with or without stored codes               |
-| Signals (`--pids`)                                                   | `essentials`, `fuel`, `temperatures`, `emissions`, `all`, `NAME,NAME`           |
-| Polling interval (`--interval`)                                      | 100 ms to 5 s                                                                   |
-| Trouble codes and reconnection (`--no-dtc`, `--no-reconnect`)        | on or off                                                                       |
-| Log file (`--log`, `--log-format`, `--log-level`, `--log-max-lines`) | `pretty`, `json` (JSON lines) or `raw`; errors, traffic or everything; rotation |
-| JSON session report (`--json`)                                       | file written on exit with statistics and every sample                           |
+| Question (flag)                                                      | Choices                                                                               |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| View (`--web`, `--terminal`, `--port`, `--host`, `--no-open`)        | terminal or web; for web: this computer only or your network, open the browser or not |
+| Language (`--lang`)                                                  | `en`, `pt-BR`; detected from `ELM327_LANG`, `LC_ALL`, the OS language, `LANG`         |
+| Connection (`--demo`, `--serial`, `--wifi`)                          | simulator, serial port and baud rate, WiFi host and port                              |
+| Adapter compatibility (`--compat`)                                   | `auto`, `lenient` (old clones), `minimal`, `strict`                                   |
+| Simulator errors and trouble codes (`--sim-errors`, `--sim-dtc`)     | none, 3 %, 15 % of requests failing; with or without stored codes                     |
+| Signals (`--pids`)                                                   | `essentials`, `fuel`, `temperatures`, `emissions`, `all`, `NAME,NAME`                 |
+| Polling interval (`--interval`)                                      | 100 ms to 5 s                                                                         |
+| Trouble codes and reconnection (`--no-dtc`, `--no-reconnect`)        | on or off                                                                             |
+| Log file (`--log`, `--log-format`, `--log-level`, `--log-max-lines`) | `pretty`, `json` (JSON lines) or `raw`; errors, traffic or everything; rotation       |
+| JSON session report (`--json`)                                       | file written on exit with statistics and every sample                                 |
+
+### Web dashboard
+
+`--web` serves the dashboard on `http://localhost:3327` (the next free port is used when it is busy) and opens your browser. The page updates live through Server-Sent Events and talks back through a small JSON API, all from one Node.js process.
+
+- **Local by default.** It listens on `127.0.0.1` only. Requests with a foreign `Host` header are refused (DNS rebinding) and every API call needs a per-run token that is embedded in the page, so other websites cannot read your data or press buttons such as _Clear codes_.
+- **Your phone in the car.** `--host 0.0.0.0` also serves other devices on your network. The terminal prints addresses with an access token (`http://192.168.x.x:3327/?token=...`); without the token nothing is served.
+- **Actions.** pause or resume, polling interval, read or clear trouble codes (with confirmation), reset the adapter, save the JSON report, choose the chart signal and the language.
 
 Other flags: `--baud <rate>`, `--list-ports`, `--once` (print one frame and exit, handy for docs and CI), `-v`, `-h`.
 
@@ -277,20 +295,25 @@ src/
 ├── client/      OBD2Client, the public facade
 ├── stats/       metrics collector, ring buffer, JSON session recorder
 ├── logger/      buffered file logger with rotation
-└── cli/         wizard, argument parsing, dashboard (state + pure view), chart primitives, i18n
+├── session/     Session: signals, trouble codes, polling and stats shared by both views
+├── server/      HTTP + Server-Sent Events server for the web dashboard
+├── i18n/        translation catalogs (en, pt-BR) used by the terminal and the web UI
+└── cli/         wizard, argument parsing, terminal dashboard (state + pure view), chart primitives
+web/             Vite + TypeScript web dashboard (canvas and SVG charts written in-house)
 ```
 
-`transport → adapter → protocol → client`, with `stats`, `logger` and `cli` observing the client. Key decisions:
+`transport → adapter → protocol → client → session`, with `stats` and `logger` observing the client, and the terminal (`cli`) and web (`server` + `web`) views rendering the session. Key decisions:
 
 - **One command in flight.** The ELM327 is half duplex; the adapter queues commands and, after a timeout, discards the late reply instead of mixing it into the next command.
 - **Protocol code is pure.** Parsing and decoding never touch I/O, so they are tested with real-world response samples.
 - **The simulator is a transport.** The whole stack (init, queue, ISO-TP, decoders) runs in tests and demos exactly as with hardware.
 - **Event loop first.** No `setInterval` that can overlap work, timers are `unref`'d, logging is batched, dashboards repaint only changed lines, all buffers are bounded.
 - **The dashboard view is a pure function** `(state, size) -> lines`, which makes the UI testable without a terminal.
+- **One session, two views.** The terminal and the browser render the same `Session` snapshot; the wire format is a typed JSON contract (`src/session/wire.ts`) shared with the web app.
 
 ## Translations
 
-Interface texts live in `src/cli/i18n/locales/*.json`. To add a language: copy `en.json` to `<code>.json`, translate the values (keep the `{placeholders}`), register it in `src/cli/i18n/index.ts` and run `npm test`; a test verifies that every key exists. Optional `pid.<NAME>` and `dtc.<CODE>` keys translate signal and trouble code descriptions.
+Interface texts (terminal and web) live in `src/i18n/locales/*.json`. To add a language: copy `en.json` to `<code>.json`, translate the values (keep the `{placeholders}`), register it in `src/i18n/index.ts` and run `npm test`; a test verifies that every key exists. Optional `pid.<NAME>` and `dtc.<CODE>` keys translate signal and trouble code descriptions.
 
 ## Migrating from v1
 
@@ -303,13 +326,15 @@ Interface texts live in `src/cli/i18n/locales/*.json`. To add a language: copy `
 - Removed: `ResponseMatcher`, `DiagnosticRequestBuilder`, `sendDiagnosticRequest`, `createOBD2Client`, `lineEnding`, `address`. Use `request(mode, pid)` for raw requests.
 - The library no longer writes to the console.
 - The `examples/` folder is gone: run `npx elm327 --demo` instead.
+- 2.1 adds the web dashboard (`--web`) and the `Session` API; nothing from 2.0 was removed.
 
 ## Development
 
 ```bash
 git clone https://github.com/edu-amr/elm327.git && cd elm327
 npm install
-npm run demo        # dashboard against the simulator, from source
+npm run demo        # terminal dashboard against the simulator, from source
+npm run web:dev     # web UI with hot reload (needs: ELM327_WEB_TOKEN=dev npx elm327 --demo --web --no-open, then open http://localhost:5173/?token=dev)
 npm test            # unit and end-to-end tests (simulator based)
 npm run lint && npm run typecheck && npm run build
 ```
