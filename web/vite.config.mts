@@ -1,14 +1,18 @@
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  root: fileURLToPath(new URL('.', import.meta.url)),
+  plugins: [react(), tailwindcss()],
   base: './',
+  resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
   build: {
     outDir: '../dist/web',
     emptyOutDir: true,
     target: 'es2022',
     sourcemap: false,
+    chunkSizeWarningLimit: 900,
   },
   server: {
     port: 5173,

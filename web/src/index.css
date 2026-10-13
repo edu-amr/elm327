@@ -1,0 +1,262 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource/chakra-petch/latin-500.css';
+@import '@fontsource/chakra-petch/latin-600.css';
+@import '@fontsource/chakra-petch/latin-700.css';
+@import '@fontsource/oxanium/latin-500.css';
+@import '@fontsource/oxanium/latin-700.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Oxanium', ui-monospace, 'SF Mono', Menlo, monospace;
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+  --color-amber: var(--amber);
+  --color-surface: var(--surface);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Instrument-cluster palette: warm graphite, amber backlight, hairline borders. */
+:root {
+  --radius: 0.375rem;
+  --background: oklch(0.955 0.012 85);
+  --foreground: oklch(0.22 0.02 60);
+  --card: oklch(0.985 0.008 85);
+  --card-foreground: oklch(0.22 0.02 60);
+  --popover: oklch(0.99 0.006 85);
+  --popover-foreground: oklch(0.22 0.02 60);
+  --primary: oklch(0.58 0.15 62);
+  --primary-foreground: oklch(0.985 0.01 85);
+  --secondary: oklch(0.92 0.014 85);
+  --secondary-foreground: oklch(0.28 0.02 60);
+  --muted: oklch(0.93 0.012 85);
+  --muted-foreground: oklch(0.48 0.02 70);
+  --accent: oklch(0.91 0.02 80);
+  --accent-foreground: oklch(0.25 0.02 60);
+  --destructive: oklch(0.55 0.21 27);
+  --border: oklch(0.86 0.014 80);
+  --input: oklch(0.86 0.014 80);
+  --ring: oklch(0.58 0.15 62);
+  --surface: oklch(0.945 0.012 85);
+  --amber: oklch(0.62 0.16 62);
+  --ok: oklch(0.55 0.15 150);
+  --warn: oklch(0.62 0.15 80);
+  --bad: oklch(0.55 0.21 27);
+  --info: oklch(0.52 0.12 235);
+  --chart-1: oklch(0.62 0.16 62);
+  --chart-2: oklch(0.52 0.12 235);
+  --chart-3: oklch(0.55 0.15 150);
+  --chart-4: oklch(0.55 0.21 27);
+  --chart-5: oklch(0.5 0.16 300);
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+.dark {
+  --background: oklch(0.135 0.006 70);
+  --foreground: oklch(0.945 0.012 85);
+  --card: oklch(0.175 0.008 70);
+  --card-foreground: oklch(0.945 0.012 85);
+  --popover: oklch(0.2 0.009 70);
+  --popover-foreground: oklch(0.945 0.012 85);
+  --primary: oklch(0.82 0.165 78);
+  --primary-foreground: oklch(0.2 0.03 70);
+  --secondary: oklch(0.235 0.01 70);
+  --secondary-foreground: oklch(0.93 0.012 85);
+  --muted: oklch(0.215 0.008 70);
+  --muted-foreground: oklch(0.69 0.02 80);
+  --accent: oklch(0.265 0.014 70);
+  --accent-foreground: oklch(0.95 0.012 85);
+  --destructive: oklch(0.67 0.21 25);
+  --border: oklch(0.31 0.012 70 / 0.85);
+  --input: oklch(0.31 0.012 70);
+  --ring: oklch(0.82 0.165 78);
+  --surface: oklch(0.155 0.007 70);
+  --amber: oklch(0.82 0.165 78);
+  --ok: oklch(0.8 0.17 150);
+  --warn: oklch(0.85 0.15 90);
+  --bad: oklch(0.68 0.21 27);
+  --info: oklch(0.8 0.1 220);
+  --chart-1: oklch(0.82 0.165 78);
+  --chart-2: oklch(0.82 0.1 215);
+  --chart-3: oklch(0.8 0.17 150);
+  --chart-4: oklch(0.68 0.2 30);
+  --chart-5: oklch(0.72 0.15 300);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-height: 100dvh;
+    /* Faint dot grid like an instrument bezel; barely visible on purpose. */
+    background-image:
+      radial-gradient(
+        1100px 520px at 50% -8%,
+        color-mix(in oklab, var(--amber) 9%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        circle at 1px 1px,
+        color-mix(in oklab, var(--foreground) 5%, transparent) 1px,
+        transparent 0
+      );
+    background-size:
+      auto,
+      22px 22px;
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--amber) 35%, transparent);
+  }
+}
+
+/* Panel with HUD corner brackets instead of a generic rounded card. */
+@utility hud {
+  position: relative;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--card) 100%, white 2%), var(--card));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, white 5%, transparent);
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    pointer-events: none;
+    border-color: color-mix(in oklab, var(--amber) 70%, transparent);
+    border-style: solid;
+    border-width: 0;
+  }
+  &::before {
+    top: -1px;
+    left: -1px;
+    border-top-width: 2px;
+    border-left-width: 2px;
+    border-top-left-radius: var(--radius);
+  }
+  &::after {
+    right: -1px;
+    bottom: -1px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-bottom-right-radius: var(--radius);
+  }
+}
+
+@utility label-caps {
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * uiarc components read their own token names (--accent, --success, --text-muted ...).
+ * Mapping them inside a scope keeps shadcn's --accent (a surface color) untouched.
+ */
+.arc-scope {
+  --accent: var(--amber);
+  --accent-strong: var(--amber);
+  --success: var(--ok);
+  --warning: var(--warn);
+  --danger: var(--bad);
+  --text-secondary: color-mix(in oklab, var(--foreground) 80%, transparent);
+  --text-muted: var(--muted-foreground);
+  --border-strong: color-mix(in oklab, var(--foreground) 24%, var(--border));
+  --surface-muted: var(--muted);
+  --font-display: var(--font-sans);
+  --font-body: var(--font-sans);
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-lg: 1.0625rem;
+  --text-3xl: 1.75rem;
+  --tracking-display: -0.01em;
+  --tracking-body: 0;
+  --leading-body: 1.45;
+  --duration-fast: 0.14s;
+  --duration-standard: 0.28s;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --radius-control: 0.375rem;
+  --radius-surface: 0.5rem;
+  --radius-pill: 999px;
+  --shadow-resting: none;
+  --control-height-sm: 1.75rem;
+}

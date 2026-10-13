@@ -203,5 +203,20 @@
   "web.stale": "no recent data",
   "web.stat.requests": "Requests",
   "web.stat.sent": "Sent",
-  "web.stat.received": "Received"
+  "web.stat.received": "Received",
+  "web.zone.ok": "Normal",
+  "web.zone.warn": "Elevated",
+  "web.zone.bad": "Critical",
+  "web.zone.info": "Low",
+  "web.zone.accent": "Active",
+  "web.zone.purple": "Active",
+  "web.kpi.requests": "Requests",
+  "web.kpi.requests.ctx": "since the session started",
+  "web.kpi.success": "Success rate",
+  "web.kpi.success.ctx": "answered by the vehicle",
+  "web.kpi.latency": "Avg latency",
+  "web.kpi.latency.ctx": "per request, last samples",
+  "web.kpi.rate": "Throughput",
+  "web.kpi.rate.ctx": "requests per second",
+  "web.mil.alert": "Check-engine lamp is on"
 }

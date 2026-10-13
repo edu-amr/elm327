@@ -1,4 +1,4 @@
-import type { WireAction, WireMeta, WireState } from '../../src/session/wire';
+import type { WireAction, WireMeta, WireState } from '../../../src/session/wire';
 
 const PLACEHOLDER = '__ELM327_TOKEN__';
 

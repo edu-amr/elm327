@@ -320,5 +320,20 @@
   "web.stale": "sem dados recentes",
   "web.stat.requests": "Requisições",
   "web.stat.sent": "Enviado",
-  "web.stat.received": "Recebido"
+  "web.stat.received": "Recebido",
+  "web.zone.ok": "Normal",
+  "web.zone.warn": "Elevado",
+  "web.zone.bad": "Crítico",
+  "web.zone.info": "Baixo",
+  "web.zone.accent": "Ativo",
+  "web.zone.purple": "Ativo",
+  "web.kpi.requests": "Requisições",
+  "web.kpi.requests.ctx": "desde o início da sessão",
+  "web.kpi.success": "Taxa de sucesso",
+  "web.kpi.success.ctx": "respondidas pelo veículo",
+  "web.kpi.latency": "Latência média",
+  "web.kpi.latency.ctx": "por requisição, últimas amostras",
+  "web.kpi.rate": "Vazão",
+  "web.kpi.rate.ctx": "requisições por segundo",
+  "web.mil.alert": "A luz da injeção está acesa"
 }

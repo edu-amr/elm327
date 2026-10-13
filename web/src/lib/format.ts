@@ -1,4 +1,4 @@
-import type { WirePidStats } from '../../src/session/wire';
+import type { WirePidStats } from '../../../src/session/wire';
 
 export function formatNumber(value: number, locale: string): string {
   if (!Number.isFinite(value)) return '—';
