@@ -340,5 +340,7 @@
   "web.rail.overview": "Visão geral",
   "web.rail.problems": "Problemas",
   "web.rail.terminal": "Painel de tráfego (Ctrl+J)",
+  "web.rail.fullscreen": "Tela cheia",
+  "web.rail.fullscreen.exit": "Sair da tela cheia",
   "web.panel.close": "Fechar painel"
 }

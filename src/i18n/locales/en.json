@@ -223,5 +223,7 @@
   "web.rail.overview": "Overview",
   "web.rail.problems": "Problems",
   "web.rail.terminal": "Traffic panel (Ctrl+J)",
+  "web.rail.fullscreen": "Full screen",
+  "web.rail.fullscreen.exit": "Exit full screen",
   "web.panel.close": "Close panel"
 }

@@ -1,10 +1,13 @@
 import {
   ChartSquareIcon,
   DangerTriangleIcon,
+  FullScreenIcon,
   MoonIcon,
   PanelBottomIcon,
+  QuitFullScreenIcon,
   SunIcon,
 } from '@solar-icons/react/linear';
+import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useI18n } from '@/lib/i18n';
@@ -63,6 +66,22 @@ interface ActivityRailProps {
 }
 
 /** Narrow icon rail on the left, like an editor's activity bar. */
+function useFullscreen(): [boolean, () => void] {
+  const [active, setActive] = useState(() => document.fullscreenElement !== null);
+  useEffect(() => {
+    const sync = (): void => setActive(document.fullscreenElement !== null);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+  const toggle = (): void => {
+    const task = document.fullscreenElement
+      ? document.exitFullscreen()
+      : document.documentElement.requestFullscreen();
+    task.catch(() => undefined);
+  };
+  return [active, toggle];
+}
+
 export function ActivityRail({
   problems,
   panelOpen,
@@ -72,6 +91,7 @@ export function ActivityRail({
 }: ActivityRailProps) {
   const { t } = useI18n();
   const { resolvedTheme, setTheme } = useTheme();
+  const [fullscreen, toggleFullscreen] = useFullscreen();
   return (
     <nav
       className='flex w-11 shrink-0 flex-col items-center justify-between border-r border-border bg-card py-1'
@@ -99,6 +119,15 @@ export function ActivityRail({
         >
           <PanelBottomIcon size={20} />
         </RailButton>
+        {document.fullscreenEnabled ? (
+          <RailButton
+            label={t(fullscreen ? 'web.rail.fullscreen.exit' : 'web.rail.fullscreen')}
+            active={fullscreen}
+            onClick={toggleFullscreen}
+          >
+            {fullscreen ? <QuitFullScreenIcon size={20} /> : <FullScreenIcon size={20} />}
+          </RailButton>
+        ) : null}
         <RailButton
           label={t('web.theme')}
           onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
