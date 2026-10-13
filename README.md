@@ -13,39 +13,7 @@ npx elm327 --demo      # simulated car, nothing to plug in
 npx elm327             # interactive setup for your real adapter
 ```
 
-```
- ELM327 v2  ● LIVE  Simulator  ·  ELM327 v2.1  ·  ISO 15765-4 (CAN 11/500)  ·  13.9 V               up 00:00:02  250 ms
- RPM ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃    799 rpm
-     0             1             2             3           4             5             6             7
-╭─ Dashboard ───────────────────────────────╮ ╭─ Signals ──────────────────────────────────────────────────────────────╮
-│ RPM                  SPEED                │ │ Signal                        Value  Unit       Min       Max  Trend   │
-│    _  _  _                _               │ │ ───────────────────────────────────────────────────────────────────────│
-│     ||_||_|              | |              │ │ ▸ Engine speed                  799  rpm        795       805       █▁▄│
-│     | _| _|              |_|              │ │   Vehicle speed                   0  km/h         0         1       █▁▁│
-│ rpm                  km/h                 │ │   Engine coolant temper…         45  °C          45        45       ▁▁▁│
-│                                           │ │   Calculated engine load       25.9  %         25.9      26.3       █▁▁│
-│ Coolant  █▏░░░░░░░░░░░░░░░░░░░       45 °C│ │   Absolute throttle pos…          9  %            9         9        ▁▁│
-│ Load     █████▌░░░░░░░░░░░░░░░      25.9 %│ │   Intake air temperature         30  °C          30        30       ▁▁▁│
-│ Throttle █▉░░░░░░░░░░░░░░░░░░░         9 %│ │   Mass air flow rate           3.48  g/s       3.42      3.48       ▂▁█│
-│ Fuel     ███████████████▏░░░░░      72.2 %│ │   Fuel tank level              72.2  %         72.2      72.2       ▁▁▁│
-│ Battery  ██████████████▊░░░░░░      13.9 V│ │   Control module voltage       13.9  V         13.9      13.9       ▁▆█│
-╰───────────────────────────────────────────╯ ╰────────────────────────────────────────────────────────────────────────╯
-╭─ Trend · Engine speed ───────────────────────────╮ ╭─ Link health ──────────────────╮ ╭─ Latency ────────────────────╮
-│ 7,000 ┤                                          │ │   ⢀⣤⣶⣿⣿⣿⣿⣶⣤⡀    ● ok        45 │ │ <25ms  ████████████████▋░░ 21│
-│       ┤                                          │ │  ⣴⣿⣿⠿⠛⠉⠉⠛⠿⣿⣿⣦   ● no data    0 │ │ <50ms  ███████████████████ 24│
-│       ┤                                          │ │ ⣼⣿⣿⠃      ⠘⣿⣿⣧  ● failed     2 │ │ <100ms ░░░░░░░░░░░░░░░░░░░  0│
-│ 3,500 ┤                                          │ │     95.7%         timeout    0 │ │ <250ms ▊░░░░░░░░░░░░░░░░░░  1│
-│       ┤                                          │ │ ⢻⣿⣿⡄      ⢠⣿⣿⡟    reconn     0 │ │ <500ms ▊░░░░░░░░░░░░░░░░░░  1│
-│       ┤                                          │ │  ⠻⣿⣿⣶⣤⣀⣀⣤⣶⣿⣿⠟     req/s   23.3 │ │ ≥500ms ░░░░░░░░░░░░░░░░░░░  0│
-│     0 ┤⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉│ │   ⠈⠛⠿⣿⣿⣿⣿⠿⠛⠁                   │ │ avg 37ms  p95 37ms  last 28ms│
-│ now 799 rpm   min 795   avg 800   max 805        │ │                                │ │ ▁▇▇▄▂▄▆▇▂▃▁▄▃▅▆▂▃▄▁▄▃▄▄▄▅█▃▂▅│
-│                                                  │ │ ↑ 237 B   ↓ 1.0 KB             │ │                              │
-╰──────────────────────────────────────────────────╯ ╰────────────────────────────────╯ ╰──────────────────────────────╯
-╭─ Trouble codes · checked 04:47:26 ───────────╮ ╭─ Traffic ───────────────────────────────────────────────────────────╮
-│ ● MIL ON  2 stored codes                     │ │ 04:47:27.154 → 0111                                                 │
-│ P0301 Cylinder 1 misfire detected            │ │ 04:47:27.184 ← 7E8 03 41 11 17 00 00 00 00                          │
-│ P0420 Catalyst efficiency below threshold (b…│ │ 04:47:27.185 → 010F                                                 │
-```
+![elm327 live dashboard running against the built-in simulator](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard.jpg)
 
 The first v1 version of this project (library only) in action: <https://x.com/edu_amr_/status/2051821164889030664>.
 
