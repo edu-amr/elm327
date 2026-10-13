@@ -168,9 +168,12 @@ export function matchResponse(
   throw new NoDataError('No matching response from the vehicle');
 }
 
-/** Collects the payload of every frame answering `mode`/`pid` (multi-line Mode 9). */
+/**
+ * Collects the payloads answering `mode`/`pid` from the first responding ECU
+ * (several ECUs often answer Mode 09; their replies must not be merged).
+ */
 export function collectPayloads(frames: EcuFrame[], mode: number, pid: number): number[][] {
-  return frames
-    .filter(({ bytes }) => bytes[0] === mode + 0x40 && bytes[1] === pid)
-    .map(({ bytes }) => bytes.slice(2));
+  const matching = frames.filter(({ bytes }) => bytes[0] === mode + 0x40 && bytes[1] === pid);
+  const first = matching[0]?.ecu;
+  return matching.filter(({ ecu }) => ecu === first).map(({ bytes }) => bytes.slice(2));
 }

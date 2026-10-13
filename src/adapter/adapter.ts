@@ -17,6 +17,7 @@ export interface Exchange {
 interface Pending {
   command: string;
   resolve: (lines: string[]) => void;
+  reject: (error: Error) => void;
 }
 
 const ESC = '\x1b';
@@ -51,9 +52,16 @@ export class Adapter extends EventEmitter {
   ) {
     super();
     transport.on('data', (chunk: string) => this.onData(chunk));
-    transport.on('error', (error: Error) => this.emit('error', error));
+    transport.on('error', (error: Error) => {
+      if (this.listenerCount('error') > 0) this.emit('error', error);
+    });
     transport.on('close', () => {
+      const pending = this.pending;
+      this.pending = undefined;
       this.monitoring = false;
+      this.draining = false;
+      this.idle();
+      pending?.reject(new ConnectionError('Connection closed'));
       this.emit('close');
     });
   }
@@ -150,6 +158,10 @@ export class Adapter extends EventEmitter {
         resolve: (lines) => {
           clearTimeout(timer);
           resolve(lines);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
         },
       };
       this.emitTraffic('tx', command);

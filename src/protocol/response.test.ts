@@ -130,4 +130,16 @@ describe('collectPayloads', () => {
       [0x02, 0x43, 0x44],
     ]);
   });
+
+  it('keeps only the first responding ECU so replies are not merged', () => {
+    const frames = [
+      { ecu: '7E8', bytes: [0x49, 0x02, 0x01, 0x41, 0x42] },
+      { ecu: '7E9', bytes: [0x49, 0x02, 0x01, 0x41, 0x42] },
+      { ecu: '7E8', bytes: [0x49, 0x02, 0x02, 0x43] },
+    ];
+    expect(collectPayloads(frames, 0x09, 0x02)).toEqual([
+      [0x01, 0x41, 0x42],
+      [0x02, 0x43],
+    ]);
+  });
 });

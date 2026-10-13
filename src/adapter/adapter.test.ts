@@ -113,4 +113,19 @@ describe('Adapter', () => {
     expect(frames).toEqual(['201 00 01', '201 00 02']);
     expect(adapter.isMonitoring).toBe(false);
   });
+
+  it('rejects a pending command immediately when the link closes', async () => {
+    const { transport, adapter } = setup(5000);
+    transport.respond = () => undefined;
+    const pending = adapter.send('010C');
+    setImmediate(() => void transport.close());
+    const started = Date.now();
+    await expect(pending).rejects.toBeInstanceOf(ConnectionError);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it('does not throw when the transport errors and nobody listens', () => {
+    const { transport } = setup();
+    expect(() => transport.emit('error', new Error('ECONNRESET'))).not.toThrow();
+  });
 });

@@ -40,7 +40,7 @@ export const MODE1_ENCODERS: Record<number, (s: VehicleState, dtcCount: number) 
   0x5e: (s) => u16(s.fuelRate * 20),
 };
 
-export const FREEZE_FRAME_PIDS = [0x04, 0x05, 0x0c, 0x0d, 0x11] as const;
+export const FREEZE_FRAME_PIDS = [0x04, 0x05, 0x0c, 0x0d, 0x11, 0x2f] as const;
 export const SECONDARY_ECU_PIDS = [0x04, 0x05, 0x0c, 0x0d] as const;
 export const MODE9_PIDS = [0x02, 0x04, 0x0a] as const;
 

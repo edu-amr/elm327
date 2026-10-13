@@ -90,6 +90,11 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
   private autoReconnect = false;
   private manualClose = false;
   private reconnecting = false;
+  private connecting: Promise<void> | undefined;
+  private detection: Promise<void> | undefined;
+  /** Bumped by disconnect() so an in-flight connect knows it was cancelled. */
+  private epoch = 0;
+  private pollGeneration = 0;
   private reconnectTimer: NodeJS.Timeout | undefined;
   private wakeReconnect: (() => void) | undefined;
   private readonly pollers = new Set<string>();
@@ -107,8 +112,21 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
   // ---- connection ---------------------------------------------------------
 
   async connect(): Promise<void> {
-    if (this.adapter?.isOpen) return;
     this.manualClose = false;
+    return this.establish();
+  }
+
+  /** Concurrent callers share one connection attempt. */
+  private establish(): Promise<void> {
+    if (this.adapter?.isOpen) return Promise.resolve();
+    this.connecting ??= this.openAdapter().finally(() => {
+      this.connecting = undefined;
+    });
+    return this.connecting;
+  }
+
+  private async openAdapter(): Promise<void> {
+    const epoch = this.epoch;
     this.log('info', 'Connecting', { type: this.config.type });
 
     const adapter = new Adapter(createTransport(this.config), this.config.timeout);
@@ -126,16 +144,23 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
         : new ConnectionError(`Connection failed: ${errorMessage(error)}`, { cause: error });
     }
 
+    if (epoch !== this.epoch) {
+      await adapter.close().catch(() => undefined);
+      adapter.removeAllListeners();
+      throw new ConnectionError('Connection cancelled by disconnect()');
+    }
+
     this.adapter = adapter;
     this.lastDetection = Date.now();
     this.startHeartbeat();
     this.log('info', 'Ready', { ...this.info });
-    this.emit('connected');
-    this.emit('ready', this.info);
+    this.announce('connected');
+    this.announce('ready', this.info);
   }
 
   async disconnect(): Promise<void> {
     this.manualClose = true;
+    this.epoch++;
     this.stopPolling();
     this.stopHeartbeat();
     this.cancelReconnect();
@@ -145,16 +170,17 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
     if (adapter) {
       await adapter.close();
       adapter.removeAllListeners();
-      this.emit('disconnected');
+      this.announce('disconnected');
     }
-    await this.logger?.close();
+    await this.connecting?.catch(() => undefined);
+    this.logger?.flush();
   }
 
   /** Re-runs the adapter initialization sequence (ATZ and configuration). */
   async reset(): Promise<void> {
     const adapter = this.requireAdapter();
     this.info = await initialize(adapter, this.config);
-    this.emit('adapterReset');
+    this.announce('adapterReset');
   }
 
   setAutoReconnect(enabled: boolean): void {
@@ -348,12 +374,17 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
   }
 
   async getAllFreezeFrames(): Promise<OBD2Response[]> {
-    let supported: number[];
-    try {
-      supported = decodeSupportedPids(0x00, (await this.request(0x02, 0x00)).data.slice(1));
-    } catch (error) {
-      if (error instanceof NoDataError) return [];
-      throw error;
+    const supported: number[] = [];
+    for (let base = 0x00; base <= 0xe0; base += 0x20) {
+      try {
+        const { data } = await this.request(0x02, base);
+        const pids = decodeSupportedPids(base, data.slice(1));
+        supported.push(...pids);
+        if (!pids.includes(base + 0x20)) break;
+      } catch (error) {
+        if (error instanceof NoDataError) break;
+        throw error;
+      }
     }
     const frames: OBD2Response[] = [];
     for (const pid of supported) {
@@ -446,11 +477,13 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
     if (intervalMs !== undefined) this.pollIntervalMs = intervalMs;
     if (this.polling) return;
     this.polling = true;
-    this.pollTimer = setTimeout(() => void this.pollRound(), 0);
+    const generation = this.pollGeneration;
+    this.pollTimer = setTimeout(() => void this.pollRound(generation), 0);
   }
 
   stopPolling(): void {
     this.polling = false;
+    this.pollGeneration++;
     clearTimeout(this.pollTimer);
     this.pollTimer = undefined;
   }
@@ -461,20 +494,26 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
     this.emit('canFrame', line);
   };
 
-  private async pollRound(): Promise<void> {
+  /** One polling round; a round from before stopPolling() never reschedules itself. */
+  private async pollRound(generation: number): Promise<void> {
     const started = Date.now();
-    if (this.isConnected()) {
-      const names = this.pollers.size > 0 ? [...this.pollers] : DEFAULT_POLL_PIDS;
-      const results = await this.queryMultiple(names);
-      for (const result of results) {
-        if ('error' in result) this.emit('pollError', result);
-        else this.emit('pollData', result);
+    try {
+      if (this.isConnected()) {
+        const names = this.pollers.size > 0 ? [...this.pollers] : DEFAULT_POLL_PIDS;
+        const results = await this.queryMultiple(names);
+        if (generation !== this.pollGeneration) return;
+        for (const result of results) {
+          if ('error' in result) this.announce('pollError', result);
+          else this.announce('pollData', result);
+        }
+        this.announce('pollComplete', results);
       }
-      this.emit('pollComplete', results);
+    } catch (error) {
+      this.emitError(error instanceof Error ? error : new Error(errorMessage(error)));
     }
-    if (!this.polling) return;
+    if (generation !== this.pollGeneration) return;
     const wait = Math.max(0, this.pollIntervalMs - (Date.now() - started));
-    this.pollTimer = setTimeout(() => void this.pollRound(), wait);
+    this.pollTimer = setTimeout(() => void this.pollRound(generation), wait);
   }
 
   private async queryDefinition(def: PidDefinition): Promise<OBD2Response> {
@@ -524,16 +563,25 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
   }
 
   /** Re-detects the protocol when the adapter came up before the ignition did. */
-  private async ensureVehicle(adapter: Adapter): Promise<void> {
-    if (!this.info || this.info.vehicleConnected) return;
+  private ensureVehicle(adapter: Adapter): Promise<void> {
+    if (!this.info || this.info.vehicleConnected) return Promise.resolve();
+    if (this.detection) return this.detection;
     if (Date.now() - this.lastDetection < REDETECT_COOLDOWN_MS) {
-      throw new ConnectionError('Vehicle not responding. Is the ignition on?');
+      return Promise.reject(new ConnectionError('Vehicle not responding. Is the ignition on?'));
     }
-    this.lastDetection = Date.now();
-    this.info = { ...this.info, ...(await detectVehicle(adapter)) };
-    if (!this.info.vehicleConnected) {
-      throw new ConnectionError('Vehicle not responding. Is the ignition on?');
-    }
+
+    this.detection = (async () => {
+      try {
+        this.info = { ...this.info!, ...(await detectVehicle(adapter)) };
+        if (!this.info.vehicleConnected) {
+          throw new ConnectionError('Vehicle not responding. Is the ignition on?');
+        }
+      } finally {
+        this.lastDetection = Date.now();
+        this.detection = undefined;
+      }
+    })();
+    return this.detection;
   }
 
   private requireAdapter(): Adapter {
@@ -563,25 +611,26 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
     this.adapter = undefined;
     this.stopHeartbeat();
     this.log('warn', 'Connection lost');
-    this.emit('disconnected');
+    this.announce('disconnected');
     if (this.autoReconnect && !this.manualClose) void this.reconnect();
   }
 
   private async reconnect(): Promise<void> {
     if (this.reconnecting) return;
     this.reconnecting = true;
-    this.emit('reconnecting');
+    this.announce('reconnecting');
 
     try {
       for (let attempt = 1; attempt <= RECONNECT_ATTEMPTS && !this.manualClose; attempt++) {
         await this.waitBeforeReconnect(attempt);
         if (this.manualClose) return;
         try {
-          await this.connect();
+          await this.establish();
           this.stats.recordReconnect();
-          this.emit('reconnected');
+          this.announce('reconnected');
           return;
         } catch (error) {
+          if (this.manualClose) return;
           if (attempt === RECONNECT_ATTEMPTS) {
             this.emitError(
               new ConnectionError(`Reconnection failed after ${attempt} attempts`, {
@@ -625,6 +674,15 @@ export class OBD2Client extends EventEmitter<ClientEvents> {
   private stopHeartbeat(): void {
     clearInterval(this.heartbeat);
     this.heartbeat = undefined;
+  }
+
+  /** Emits a lifecycle event; a throwing listener is logged instead of breaking the client. */
+  private announce<K extends keyof ClientEvents>(event: K, ...args: ClientEvents[K]): void {
+    try {
+      Reflect.apply(this.emit, this, [event, ...args]);
+    } catch (error) {
+      this.log('error', `Listener for "${event}" threw`, { error: errorMessage(error) });
+    }
   }
 
   /** `error` events without listeners would throw; log them instead. */

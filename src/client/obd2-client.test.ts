@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { ConnectionError, NoDataError, OBD2Error, ProtocolError } from '../errors';
 import { OBD2Client } from './obd2-client';
 
@@ -211,6 +214,95 @@ describe('auto-reconnect', () => {
     expect(client.isConnected()).toBe(true);
     expect(client.getStats().reconnects).toBe(1);
     expect(await client.getRPM()).toEqual(expect.any(Number));
+    await client.disconnect();
+  });
+});
+
+describe('lifecycle races', () => {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  it('stop then start during a round does not create a second poll loop', async () => {
+    const client = simulator({ latencyMs: 8 });
+    await client.connect();
+    ['ENGINE_RPM', 'VEHICLE_SPEED', 'COOLANT_TEMP'].forEach((name) => client.addPoller(name));
+    let rounds = 0;
+    client.on('pollComplete', () => rounds++);
+
+    client.startPolling(100);
+    await sleep(20);
+    client.stopPolling();
+    client.startPolling(100);
+    await sleep(600);
+    client.stopPolling();
+
+    expect(rounds).toBeGreaterThan(2);
+    expect(rounds).toBeLessThanOrEqual(8);
+    await client.disconnect();
+  });
+
+  it('disconnect() cancels a connect() that is still initializing', async () => {
+    const client = simulator({ latencyMs: 5 });
+    const connecting = client.connect();
+    await sleep(50);
+    await client.disconnect();
+    await expect(connecting).rejects.toThrow('cancelled');
+    expect(client.isConnected()).toBe(false);
+  });
+
+  it('concurrent connect() calls share one attempt', async () => {
+    const client = simulator();
+    const connected = jest.fn();
+    client.on('connected', connected);
+    await Promise.all([client.connect(), client.connect()]);
+    expect(connected).toHaveBeenCalledTimes(1);
+    await client.disconnect();
+  });
+
+  it('a throwing lifecycle listener does not break connect or polling', async () => {
+    const client = simulator();
+    let rounds = 0;
+    client.on('pollComplete', () => rounds++);
+    client.on('pollComplete', () => {
+      throw new Error('listener bug');
+    });
+    client.on('connected', () => {
+      throw new Error('listener bug');
+    });
+
+    await client.connect();
+    expect(client.isConnected()).toBe(true);
+
+    client.startPolling(20);
+    await sleep(250);
+    client.stopPolling();
+    expect(rounds).toBeGreaterThan(1);
+    await client.disconnect();
+  });
+
+  it('keeps logging after disconnect() and connect() until disableLogger()', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'elm327-client-'));
+    const file = join(dir, 'client.log');
+    const client = simulator();
+    client.enableLogger({ filePath: file, format: 'raw', levels: ['tx'] });
+
+    await client.connect();
+    await client.disconnect();
+    await client.connect();
+    await client.getRPM();
+    await client.disconnect();
+    await client.disableLogger();
+
+    expect(readFileSync(file, 'utf8')).toContain('010C');
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('freeze frames across PID pages', () => {
+  it('chains the supported-PID bitmaps beyond the first page', async () => {
+    const client = simulator({ dtcs: ['P0301'] });
+    await client.connect();
+    const names = (await client.getAllFreezeFrames()).map((frame) => frame.name);
+    expect(names).toEqual(expect.arrayContaining(['FREEZE_ENGINE_RPM', 'FREEZE_FUEL_LEVEL']));
     await client.disconnect();
   });
 });

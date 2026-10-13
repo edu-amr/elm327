@@ -191,13 +191,9 @@ export class ElmEmulator {
     respond: (ecu: string, payload: number[]) => string[],
   ): string[] | undefined {
     if (this.dtcs.length === 0) return undefined;
-    if (pid === 0x00) {
-      return respond(PRIMARY_ECU, [
-        0x42,
-        0x00,
-        0x00,
-        ...supportedMask(0, [0x02, ...FREEZE_FRAME_PIDS]),
-      ]);
+    if (pid % 0x20 === 0) {
+      const mask = supportedMask(pid, [0x02, ...FREEZE_FRAME_PIDS]);
+      return respond(PRIMARY_ECU, [0x42, pid, 0x00, ...mask]);
     }
     if (pid === 0x02) return respond(PRIMARY_ECU, [0x42, 0x02, 0x00, ...encodeDtc(this.dtcs[0]!)]);
     const encode = (FREEZE_FRAME_PIDS as readonly number[]).includes(pid) && MODE1_ENCODERS[pid];
