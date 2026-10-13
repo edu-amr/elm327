@@ -156,17 +156,20 @@ function readouts(state: DashboardState, width: number): string[] {
 }
 
 function gaugeLines(state: DashboardState, width: number): string[] {
-  const labelWidth = 8;
   const valueWidth = 11;
+  const present = GAUGE_ORDER.filter((name) => numeric(findPid(state, name)) !== undefined);
+  const label = (name: string): string => t(`gauge.${name}` as TranslationKey);
+  const labelWidth = Math.min(10, Math.max(8, ...present.map((name) => label(name).length)));
   const barWidth = Math.max(4, width - labelWidth - valueWidth - 2);
 
-  return GAUGE_ORDER.filter((name) => numeric(findPid(state, name)) !== undefined).map((name) => {
+  return present.map((name) => {
     const spec = GAUGES[name]!;
     const pid = findPid(state, name)!;
     const value = pid.value as number;
     const style = styleFor(spec, value) ?? theme.ok;
     const unit = pid.unit ? ` ${pid.unit}` : '';
-    return `${padEnd(theme.muted(t(`gauge.${name}` as TranslationKey)), labelWidth)} ${bar(ratioOf(spec, value), barWidth, style)} ${padStart(style(formatNumber(value)) + theme.muted(unit), valueWidth)}`;
+    const reading = padStart(style(formatNumber(value)) + theme.muted(unit), valueWidth);
+    return `${padEnd(theme.muted(label(name)), labelWidth)} ${bar(ratioOf(spec, value), barWidth, style)} ${reading}`;
   });
 }
 
