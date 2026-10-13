@@ -18,17 +18,15 @@ npx elm327             # interactive setup for your real adapter
 
 ![elm327 terminal dashboard running against the built-in simulator](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard-terminal.jpg)
 
-**Web** (`npx elm327 --web`): dark and light themes, responsive down to a phone
+**Web** (`npx elm327 --web`): one screen, no scrolling, dark and light themes
 
-![elm327 web dashboard running against the built-in simulator](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard-web.jpg)
-
-![elm327 web dashboard, light theme](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard-web-light.jpg)
+![elm327 web dashboard running against the built-in simulator](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard-web.png)
 
 The first v1 version of this project (library only) in action: <https://x.com/edu_amr_/status/2051821164889030664>.
 
 ## Highlights
 
-- **Two dashboards, same data**: pick the terminal or a web page when you start. The web version is an instrument-cluster style page: a shift-light strip, 270° dials with odometer digits, percentage gauges with state labels, live charts, clickable signals, a confirmation dialog for destructive actions, dark and light themes and a phone-friendly layout. It is built with React, shadcn/ui, EvilCharts and a few other open-source component libraries (see [NOTICE.md](NOTICE.md)) and works offline: fonts and scripts are bundled, nothing is fetched from a CDN.
+- **Two dashboards, same data**: pick the terminal or a web page when you start. The web version is a single-screen workspace that needs no scrolling: segmented RPM and speed meters, zone bars, a live trend chart, a signal table with sparklines, link-health and latency charts, and a collapsible bottom panel (Ctrl+J) with the raw traffic and trouble codes, with a confirmation dialog for destructive actions and dark and light themes. It is built with React, shadcn/ui, EvilCharts and a few other open-source component libraries (see [NOTICE.md](NOTICE.md)) and works offline: fonts and scripts are bundled, nothing is fetched from a CDN.
 - **Live dashboard in your terminal**: tachometer strip with a green → yellow → red heat ramp, bar gauges, seven-segment readouts, braille line charts, a link-health donut, latency histogram, signal table with sparklines, trouble-code panel and a raw traffic log. Keyboard driven.
 - **Interactive setup** like `create-next-app`: pick the language, terminal or web, the connection, the signals and the extras, then get the one-line command that reproduces your choices.
 - **Works without a car**: the simulator emulates an ELM327 on a CAN vehicle (drive cycle, warm-up, DTCs, freeze frame, multi-frame VIN, two ECUs, optional bus errors).
