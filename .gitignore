@@ -14,3 +14,6 @@ yarn-error.log*
 *~
 elm327-session-*.json
 elm327.log
+
+# Design references, never committed
+docs/examples/
