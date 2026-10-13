@@ -1,21 +1,25 @@
 {
   "name": "elm327",
-  "version": "1.0.5",
-  "description": "Node.js/TypeScript library for ELM327 OBD2 adapters over USB, Bluetooth and WiFi",
+  "version": "2.0.0",
+  "description": "ELM327 OBD-II library and live terminal dashboard for Node.js and TypeScript: read RPM, speed, trouble codes and VIN over USB serial, WiFi or Bluetooth, with a built-in vehicle simulator.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
+    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/cli/index.js",
     "dev": "tsx src/cli/index.ts",
+    "demo": "tsx src/cli/index.ts --demo",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",
@@ -24,17 +28,36 @@
     "prepare": "husky"
   },
   "keywords": [
-    "obd2",
-    "obd",
-    "obdii",
     "elm327",
-    "bluetooth",
-    "serial",
-    "wifi",
-    "vehicle",
+    "obd2",
+    "obd-ii",
+    "obdii",
+    "obd",
+    "can-bus",
+    "canbus",
+    "iso-15765",
+    "j1979",
     "diagnostics",
+    "dtc",
+    "trouble-codes",
+    "vin",
+    "pid",
+    "ecu",
+    "scan-tool",
     "automotive",
-    "car"
+    "vehicle",
+    "car",
+    "telemetry",
+    "serialport",
+    "wifi",
+    "bluetooth",
+    "ble",
+    "typescript",
+    "cli",
+    "tui",
+    "terminal-dashboard",
+    "simulator",
+    "tachometer"
   ],
   "author": {
     "name": "Eduardo Amaro",
@@ -66,16 +89,18 @@
     "typescript-eslint": "^8.71.2"
   },
   "dependencies": {
-    "@serialport/parser-readline": "^12.0.0",
     "serialport": "^12.0.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.3.0"
   },
   "files": [
-    "dist/",
-    "examples/",
+    "dist",
     "README.md",
-    "LICENSE"
-  ]
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "bin": {
+    "elm327": "dist/cli/index.js"
+  }
 }
