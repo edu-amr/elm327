@@ -1,6 +1,6 @@
 {
   "name": "elm327",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "ELM327 OBD-II library and live terminal dashboard for Node.js and TypeScript: read RPM, speed, trouble codes and VIN over USB serial, WiFi or Bluetooth, with a built-in vehicle simulator.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
