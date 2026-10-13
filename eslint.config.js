@@ -1,19 +1,20 @@
-module.exports = {
-  root: true,
-  parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-  ],
-  parserOptions: {
-    ecmaVersion: 2020,
-    sourceType: 'module',
+const tseslint = require('typescript-eslint');
+
+module.exports = tseslint.config(
+  { ignores: ['dist/', 'coverage/', 'node_modules/'] },
+  ...tseslint.configs.recommended,
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/consistent-type-imports': 'error',
+      'no-console': 'error',
+      eqeqeq: 'error',
+      'prefer-const': 'error',
+    },
   },
-  rules: {
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/no-explicit-any': 'warn',
-    'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+  {
+    files: ['src/cli/**/*.ts', '**/*.test.ts'],
+    rules: { 'no-console': 'off' },
   },
-  ignorePatterns: ['dist/', 'node_modules/'],
-};
+);
