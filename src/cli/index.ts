@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { errorMessage } from '../errors';
 import { listSerialPorts } from '../transport';
 import { help, parseCliArgs } from './args';
-import { t } from './i18n';
+import { t } from '../i18n';
 import { runDashboard } from './dashboard/dashboard';
 import { runWizard } from './wizard';
 import { theme } from './ui/ansi';

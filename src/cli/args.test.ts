@@ -1,7 +1,7 @@
 import { help, parseCliArgs, parsePids, parseWifi, toCommandLine } from './args';
 import type { ParsedArgs } from './args';
-import { setLocale } from './i18n';
-import { PID_PRESETS } from './options';
+import { setLocale } from '../i18n';
+import { PID_PRESETS } from '../session/options';
 
 const parse = (argv: string[], env: NodeJS.ProcessEnv = {}): ParsedArgs =>
   parseCliArgs(argv, { env, system: () => [] });

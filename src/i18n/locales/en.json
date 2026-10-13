@@ -1,6 +1,6 @@
 {
   "app.tagline": "live OBD-II dashboard",
-  "help.text": "elm327 — live OBD-II dashboard for ELM327 adapters\n\nUsage\n  npx elm327                         interactive setup (recommended)\n  npx elm327 --demo                  simulated vehicle (asks what the flags did not say)\n  npx elm327 --serial /dev/ttyUSB0   USB / paired Bluetooth serial adapter\n  npx elm327 --wifi 192.168.0.10     WiFi adapter (default port 35000)\n\nOptions\n  --demo, --simulate       use the built-in vehicle simulator\n  --serial <path>          serial device (COM3, /dev/ttyUSB0, /dev/tty.OBDII-...)\n  --baud <rate>            serial baud rate (default 38400)\n  --wifi <host[:port]>     WiFi adapter address\n  --pids <set>             essentials | fuel | temperatures | emissions | all | NAME,NAME\n  --interval <ms>          polling interval (default {interval})\n  --json <file>            write a JSON session report on exit\n  --log <file>             write a log file (see --log-format, --log-level, --log-max-lines)\n  --log-format <fmt>       pretty | json | raw (default pretty)\n  --log-level <detail>     errors | traffic | all (default traffic)\n  --log-max-lines <n>      rotate the log after n lines, 0 = never (default 100000)\n  --compat <mode>          adapter compatibility: auto | strict | lenient | minimal\n  --sim-errors <rate>      simulator: share of requests that fail, 0 to 1\n  --sim-dtc <codes|none>   simulator: stored trouble codes, e.g. P0301,P0420\n  --no-dtc                 do not read trouble codes\n  --no-reconnect           do not reconnect automatically\n  --lang <code>            interface language: {languages}\n  --list-ports             list serial ports and exit\n  --once                   print one dashboard frame and exit\n  -y, --yes                skip every question and use defaults\n  -v, --version            print the version\n  -h, --help               show this help\n\nKeys\n  q quit · p pause · ←/→ choose chart signal · +/- polling rate\n  d read codes · c clear codes · l toggle traffic · r reset adapter · s save report\n",
+  "help.text": "elm327 — live OBD-II dashboard for ELM327 adapters\n\nUsage\n  npx elm327                         interactive setup (recommended)\n  npx elm327 --demo                  simulated vehicle (asks what the flags did not say)\n  npx elm327 --serial /dev/ttyUSB0   USB / paired Bluetooth serial adapter\n  npx elm327 --wifi 192.168.0.10     WiFi adapter (default port 35000)\n\nOptions\n  --demo, --simulate       use the built-in vehicle simulator\n  --serial <path>          serial device (COM3, /dev/ttyUSB0, /dev/tty.OBDII-...)\n  --baud <rate>            serial baud rate (default 38400)\n  --wifi <host[:port]>     WiFi adapter address\n  --pids <set>             essentials | fuel | temperatures | emissions | all | NAME,NAME\n  --interval <ms>          polling interval (default {interval})\n  --json <file>            write a JSON session report on exit\n  --log <file>             write a log file (see --log-format, --log-level, --log-max-lines)\n  --log-format <fmt>       pretty | json | raw (default pretty)\n  --log-level <detail>     errors | traffic | all (default traffic)\n  --log-max-lines <n>      rotate the log after n lines, 0 = never (default 100000)\n  --compat <mode>          adapter compatibility: auto | strict | lenient | minimal\n  --sim-errors <rate>      simulator: share of requests that fail, 0 to 1\n  --sim-dtc <codes|none>   simulator: stored trouble codes, e.g. P0301,P0420\n  --no-dtc                 do not read trouble codes\n  --no-reconnect           do not reconnect automatically\n  --lang <code>            interface language: {languages}\n  --web                    show the dashboard in your browser instead of the terminal\n  --terminal               show the dashboard in the terminal (default)\n  --port <n>               web dashboard port (default 3327)\n  --host <address>         web dashboard address (default 127.0.0.1; 0.0.0.0 exposes it to your network)\n  --no-open                do not open the browser automatically\n  --list-ports             list serial ports and exit\n  --once                   print one dashboard frame and exit\n  -y, --yes                skip every question and use defaults\n  -v, --version            print the version\n  -h, --help               show this help\n\nKeys\n  q quit · p pause · ←/→ choose chart signal · +/- polling rate\n  d read codes · c clear codes · l toggle traffic · r reset adapter · s save report\n",
   "error.positive": "--{flag} expects a positive number",
   "error.wifi": "--wifi expects host or host:port",
   "error.lang": "Unsupported language \"{code}\". Available: {languages}",
@@ -157,5 +157,21 @@
   "wizard.log.rotation.hint": "older lines move to <file>.1",
   "wizard.report.enable": "Save a JSON session report on exit?",
   "wizard.report.hint": "statistics and every sample",
-  "wizard.report.file": "Report file path"
+  "wizard.report.file": "Report file path",
+  "error.view": "--web and --terminal cannot be used together",
+  "wizard.view.title": "How do you want to see it?",
+  "wizard.view.terminal": "Terminal",
+  "wizard.view.terminal.hint": "dashboard right here in your terminal",
+  "wizard.view.web": "Web browser",
+  "wizard.view.web.hint": "graphical dashboard served on your computer",
+  "wizard.web.network.title": "Who can open the web dashboard?",
+  "wizard.web.network.local": "Only this computer",
+  "wizard.web.network.local.hint": "recommended",
+  "wizard.web.network.lan": "Other devices on my network",
+  "wizard.web.network.lan.hint": "e.g. a phone in the car; protected by an access token",
+  "wizard.web.open": "Open the browser automatically?",
+  "cli.webReady": "Web dashboard ready at",
+  "cli.webStop": "Press Ctrl+C to stop.",
+  "cli.webNetwork": "Other devices on your network can open this address; actions need the token in the link.",
+  "cli.webPortBusy": "Port {port} is busy, using {next}."
 }

@@ -1,4 +1,4 @@
-import { currentLocale } from '../i18n';
+import { currentLocale } from '../../i18n';
 import type { PidValue } from '../../types';
 
 export function formatNumber(value: number): string {

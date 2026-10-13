@@ -1,34 +1,11 @@
-import type { StatsSnapshot } from '../../stats/collector';
-import type { AdapterInfo, Dtc } from '../../types';
+import type { SessionState } from '../../session/state';
 
-export type Status = 'connecting' | 'live' | 'paused' | 'reconnecting' | 'offline';
+export type { DtcPanelState, LogLine, Status } from '../../session/state';
 
-export interface LogLine {
-  at: number;
-  kind: 'tx' | 'rx' | 'warn';
-  text: string;
-}
-
-export interface DtcPanelState {
-  codes: Dtc[];
-  milOn: boolean | undefined;
-  checkedAt: number | undefined;
-  error: string | undefined;
-}
-
-export interface DashboardState {
-  title: string;
-  status: Status;
-  adapter: AdapterInfo | undefined;
-  voltage: number | undefined;
-  startedAt: number;
-  intervalMs: number;
-  signals: string[];
-  focus: string | undefined;
-  stats: StatsSnapshot;
-  dtcs: DtcPanelState;
-  log: LogLine[];
+/** The session plus terminal-only presentation state. */
+export interface DashboardState extends Omit<SessionState, 'notice'> {
   showLog: boolean;
+  /** Translated notice text, if one is showing. */
   notice: string | undefined;
   /** Question awaiting a y/n answer, if any. */
   confirm: string | undefined;

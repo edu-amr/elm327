@@ -5,7 +5,7 @@ import type { CloneCompatibility } from '../types';
 import { listSerialPorts } from '../transport';
 import { toCommandLine } from './args';
 import type { ParsedArgs } from './args';
-import { availableLocales, currentLocale, localeName, setLocale, t } from './i18n';
+import { availableLocales, currentLocale, localeName, setLocale, t } from '../i18n';
 import {
   DEFAULT_INTERVAL_MS,
   DEMO_DTCS,
@@ -16,8 +16,8 @@ import {
   POLL_INTERVALS_MS,
   SIM_ERROR_CHOICES,
   sessionFileName,
-} from './options';
-import type { CliOptions, LogDetail } from './options';
+} from '../session/options';
+import type { CliOptions, LogDetail } from '../session/options';
 import { confirm, multiselect, select, text } from './prompts';
 import { bold, theme } from './ui/ansi';
 

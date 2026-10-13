@@ -1,6 +1,6 @@
 import type { LogFormat, LogLevel } from '../logger/logger';
 import type { ConnectionConfig } from '../types';
-import type { TranslationKey } from './i18n';
+import type { TranslationKey } from '../i18n';
 
 export type LogDetail = 'errors' | 'traffic' | 'all';
 
@@ -27,7 +27,19 @@ export interface LogSettings {
   maxLines: number;
 }
 
-export interface CliOptions {
+export type ViewMode = 'terminal' | 'web';
+
+export interface WebSettings {
+  port: number;
+  host: string;
+  open: boolean;
+}
+
+export const DEFAULT_WEB_PORT = 3327;
+export const DEFAULT_WEB_HOST = '127.0.0.1';
+
+/** Everything that configures a monitoring session and how it is presented. */
+export interface SessionOptions {
   connection: ConnectionConfig;
   /** Human readable description of the connection, e.g. "Simulator". */
   label: string;
@@ -37,6 +49,8 @@ export interface CliOptions {
   readDtcs: boolean;
   autoReconnect: boolean;
   language: string;
+  view: ViewMode;
+  web: WebSettings;
   log?: LogSettings;
   jsonFile?: string;
 }
@@ -100,3 +114,6 @@ export function sessionFileName(now = new Date()): string {
   const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-');
   return `elm327-session-${stamp}.json`;
 }
+
+/** Kept as an alias: the command line produces session options. */
+export type CliOptions = SessionOptions;

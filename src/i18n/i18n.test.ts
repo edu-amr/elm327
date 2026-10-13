@@ -1,8 +1,8 @@
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { DTC_DESCRIPTIONS } from '../../protocol/dtc-descriptions';
-import { PIDS } from '../../protocol/pids';
-import { GAUGES } from '../dashboard/gauges';
+import { DTC_DESCRIPTIONS } from '../protocol/dtc-descriptions';
+import { PIDS } from '../protocol/pids';
+import { GAUGE_RANGES as GAUGES } from '../session/gauge-ranges';
 import { LOCALES, availableLocales, detectLocale, resolveLocale, setLocale, t, tOptional } from '.';
 
 const OPTIONAL_KEY = /^(pid\.[A-Z0-9_]+|dtc\.[PCBU][0-9A-F]{4})$/;

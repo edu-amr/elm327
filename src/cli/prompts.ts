@@ -1,5 +1,5 @@
 import { createInterface, emitKeypressEvents } from 'node:readline';
-import { t } from './i18n';
+import { t } from '../i18n';
 import { bold, cursor, theme } from './ui/ansi';
 
 export interface Choice<T> {

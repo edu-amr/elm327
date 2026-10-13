@@ -1,6 +1,6 @@
 import type { PidStats } from '../../stats/collector';
-import { t, tOptional } from '../i18n';
-import type { TranslationKey } from '../i18n';
+import { t, tOptional } from '../../i18n';
+import type { TranslationKey } from '../../i18n';
 import { LATENCY_BUCKETS_MS } from '../../stats/collector';
 import { getPidByName } from '../../protocol/pids';
 import { bold, center, ellipsize, fit, padEnd, padStart, theme, visibleWidth } from '../ui/ansi';

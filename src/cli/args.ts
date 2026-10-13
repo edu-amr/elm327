@@ -1,15 +1,17 @@
 import { parseArgs } from 'node:util';
-import { availableLocales, detectLocale, resolveLocale, setLocale, t } from './i18n';
+import { availableLocales, detectLocale, resolveLocale, setLocale, t } from '../i18n';
 import {
   DEFAULT_INTERVAL_MS,
+  DEFAULT_WEB_HOST,
+  DEFAULT_WEB_PORT,
   DEFAULT_LOG_MAX_LINES,
   DEMO_DTCS,
   DEMO_ERROR_RATE,
   LOG_DETAIL_LEVELS,
   LOG_FILE_NAMES,
   PID_PRESETS,
-} from './options';
-import type { CliOptions, LogDetail } from './options';
+} from '../session/options';
+import type { CliOptions, LogDetail, ViewMode } from '../session/options';
 import type { CloneCompatibility } from '../types';
 import type { LogFormat } from '../logger/logger';
 
@@ -27,7 +29,9 @@ export type Explicit =
   | 'log'
   | 'json'
   | 'compat'
-  | 'simulator';
+  | 'simulator'
+  | 'view'
+  | 'web';
 
 export interface ParsedArgs {
   help: boolean;
@@ -60,6 +64,11 @@ const FLAGS = {
   'no-reconnect': { type: 'boolean' },
   'list-ports': { type: 'boolean' },
   once: { type: 'boolean' },
+  web: { type: 'boolean' },
+  terminal: { type: 'boolean' },
+  port: { type: 'string' },
+  host: { type: 'string' },
+  'no-open': { type: 'boolean' },
   lang: { type: 'string' },
   yes: { type: 'boolean', short: 'y' },
   version: { type: 'boolean', short: 'v' },
@@ -142,6 +151,9 @@ export function parseCliArgs(argv: string[], environment: Environment = {}): Par
   mark('json', values.json);
   mark('compat', values.compat);
   mark('simulator', values['sim-errors'] ?? values['sim-dtc']);
+  mark('web', values.port ?? values.host ?? values['no-open']);
+  if (values.web && values.terminal) throw new Error(t('error.view'));
+  if (values.web || values.terminal) explicit.add('view');
   mark('log', values.log ?? values['log-format'] ?? values['log-level'] ?? values['log-max-lines']);
 
   const logFormat = oneOf('log-format', values['log-format'], LOG_FORMATS) ?? 'pretty';
@@ -150,12 +162,19 @@ export function parseCliArgs(argv: string[], environment: Environment = {}): Par
     'traffic';
   const compat = oneOf('compat', values.compat, COMPAT_MODES);
 
+  const view: ViewMode = values.web ? 'web' : 'terminal';
   const base = {
     pids: parsePids(values.pids),
     intervalMs: toNumber('interval', values.interval, DEFAULT_INTERVAL_MS),
     readDtcs: !values['no-dtc'],
     autoReconnect: !values['no-reconnect'],
     language,
+    view,
+    web: {
+      port: toNumber('port', values.port, DEFAULT_WEB_PORT),
+      host: values.host ?? DEFAULT_WEB_HOST,
+      open: !values['no-open'],
+    },
     ...(explicit.has('log')
       ? {
           log: {
@@ -240,6 +259,12 @@ export function toCommandLine(options: CliOptions): string {
     ([, { pids }]) => options.pids !== 'auto' && pids.join() === options.pids.join(),
   )?.[0];
   parts.push(`--pids ${options.pids === 'auto' ? 'all' : (preset ?? options.pids.join(','))}`);
+  if (options.view === 'web') {
+    parts.push('--web');
+    if (options.web.port !== DEFAULT_WEB_PORT) parts.push(`--port ${options.web.port}`);
+    if (options.web.host !== DEFAULT_WEB_HOST) parts.push(`--host ${options.web.host}`);
+    if (!options.web.open) parts.push('--no-open');
+  }
   parts.push(`--interval ${options.intervalMs}`);
   if (!options.readDtcs) parts.push('--no-dtc');
   if (!options.autoReconnect) parts.push('--no-reconnect');
