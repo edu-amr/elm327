@@ -9,6 +9,7 @@ All notable changes to this project are documented here. The format follows
 ### Added
 
 - Web dashboard: full-screen button in the side rail.
+- Project logo: favicon and header mark in the web dashboard, README header, and a braille-art banner when the setup or the web server starts.
 
 ## [2.1.1] - 2026-10-13
 

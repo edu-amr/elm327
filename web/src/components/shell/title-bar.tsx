@@ -64,7 +64,8 @@ export function TitleBar({ state, meta, connected, act }: TitleBarProps) {
 
   return (
     <header className='flex h-11 shrink-0 items-center gap-3 border-b border-border bg-card px-3'>
-      <div className='flex items-baseline gap-1.5'>
+      <div className='flex items-center gap-2'>
+        <img src='/logo-mark.png' alt='' className='h-6 w-auto' draggable={false} />
         <span className='text-[15px] font-bold tracking-[0.16em] text-primary'>ELM327</span>
         <span className='num text-[10px] text-muted-foreground'>v{meta.version.split('.')[0]}</span>
       </div>

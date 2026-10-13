@@ -20,7 +20,8 @@ import {
 } from '../session/options';
 import type { CliOptions, LogDetail, ViewMode, WebSettings } from '../session/options';
 import { confirm, multiselect, select, text } from './prompts';
-import { bold, theme } from './ui/ansi';
+import { theme } from './ui/ansi';
+import { banner } from './ui/logo';
 
 type ConnectionKind = 'simulator' | 'serial' | 'wifi';
 type Behavior = 'dtc' | 'reconnect';
@@ -289,9 +290,7 @@ export async function runWizard(args: ParsedArgs): Promise<CliOptions> {
       options.label = t('wizard.connection.simulator');
     }
   }
-  process.stdout.write(
-    `\n${bold(theme.accent(' ELM327 '))}${theme.muted(`· ${t('app.tagline')}`)}\n\n`,
-  );
+  process.stdout.write(`${banner(t('app.tagline'))}\n`);
 
   if (!explicit.has('view')) options.view = await chooseView();
   if (!explicit.has('connection')) options = { ...options, ...(await chooseConnection()) };

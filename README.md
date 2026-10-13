@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/edu-amr/elm327/main/docs/logo.png" alt="elm327 logo" width="140" />
+</p>
+
 # elm327
 
 > ELM327 OBD-II library **with a live dashboard in your terminal or browser** for Node.js and TypeScript. Read RPM, speed, trouble codes and VIN over **USB serial, WiFi or Bluetooth**, or try everything without hardware using the built-in **vehicle simulator**.

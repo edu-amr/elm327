@@ -4,7 +4,8 @@ import { startWebServer } from '../server/server';
 import type { SessionOptions } from '../session/options';
 import { Session } from '../session/session';
 import type { StopResult } from '../session/session';
-import { bold, theme } from './ui/ansi';
+import { theme } from './ui/ansi';
+import { banner } from './ui/logo';
 
 const out = (text = ''): void => void process.stdout.write(`${text}\n`);
 
@@ -20,7 +21,7 @@ export async function runWeb(options: SessionOptions, version: string): Promise<
     token: process.env['ELM327_WEB_TOKEN'],
   });
 
-  out(`\n${bold(theme.accent(' ELM327 '))}${theme.muted(`· ${t('app.tagline')}`)}\n`);
+  out(banner(t('app.tagline')));
   if (server.portChanged) {
     out(theme.warn(t('cli.webPortBusy', { port: options.web.port, next: server.port })));
   }
