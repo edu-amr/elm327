@@ -8,8 +8,8 @@ import {
 } from './response';
 
 describe('toLines', () => {
-  it('normalizes case, drops empty lines, NUL bytes and SEARCHING', () => {
-    expect(toLines('SEARCHING...\r7e8 03 41 0c 1a\0\r\r')).toEqual(['7E8 03 41 0C 1A']);
+  it('drops empty lines, NUL bytes and SEARCHING, keeping the original case', () => {
+    expect(toLines('SEARCHING...\r7e8 03 41 0c 1a\0\r\r')).toEqual(['7e8 03 41 0c 1a']);
   });
 });
 
@@ -54,6 +54,10 @@ describe('parseFrames with headers (CAN)', () => {
   it('parses 29-bit headers', () => {
     const frames = parseFrames(['18DAF110 03 41 05 7B'], true);
     expect(frames[0]).toEqual({ ecu: '18DAF110', bytes: [0x41, 0x05, 0x7b] });
+  });
+
+  it('accepts lower-case hex', () => {
+    expect(parseFrames(['7e8 03 41 05 7b'], true)[0]?.bytes).toEqual([0x41, 0x05, 0x7b]);
   });
 
   it('ignores garbage lines', () => {

@@ -33,20 +33,21 @@ const NRC_MESSAGES: Record<number, string> = {
 
 const isHex = (token: string): boolean => /^[0-9A-F]+$/.test(token);
 
-/** Splits raw adapter output into trimmed, upper-cased, non-empty lines. */
+/** Splits raw adapter output into trimmed, non-empty lines (SEARCHING... removed). */
 export function toLines(raw: string): string[] {
   return raw
     .replace(/\0/g, '')
     .split(/[\r\n]+/)
-    .map((line) => line.trim().toUpperCase())
-    .filter((line) => line.length > 0 && !line.startsWith('SEARCHING'));
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !/^SEARCHING/i.test(line));
 }
 
 /** Throws the typed error matching the first adapter error line, if any. */
 export function assertNoAdapterError(lines: string[]): void {
   for (const line of lines) {
+    const upper = line.toUpperCase();
     for (const [pattern, toError] of ADAPTER_ERRORS) {
-      if (pattern.test(line)) throw toError(line);
+      if (pattern.test(upper)) throw toError(line);
     }
   }
 }
@@ -139,7 +140,8 @@ function parsePlainFrames(lines: string[]): EcuFrame[] {
 }
 
 export function parseFrames(lines: string[], headers: boolean): EcuFrame[] {
-  return headers ? parseCanFrames(lines) : parsePlainFrames(lines);
+  const upper = lines.map((line) => line.toUpperCase());
+  return headers ? parseCanFrames(upper) : parsePlainFrames(upper);
 }
 
 /**
