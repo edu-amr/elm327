@@ -1,762 +1,357 @@
 # elm327
 
-A comprehensive Node.js library for communicating with OBD2 (On-Board Diagnostics) systems in vehicles. Supports serial (USB), Bluetooth (BLE), and WiFi (TCP) connections to ELM327 adapters.
+> ELM327 OBD-II library **and live terminal dashboard** for Node.js and TypeScript. Read RPM, speed, trouble codes and VIN over **USB serial, WiFi or Bluetooth**, or try everything without hardware using the built-in **vehicle simulator**.
 
-## Features
-
-- **Universal OBD2 Support**: Compatible with all OBD2-compliant vehicles (1996+)
-- **Multiple Connection Types**: Serial (USB/RS232), Bluetooth (Web BLE), and WiFi (TCP)
-- **Comprehensive Parameter Set**: 23+ predefined OBD2 parameters with proper decoders
-- **Real-time Monitoring**: Event-driven data streaming capabilities
-- **Adapter Management**: Automatic adapter initialization and configuration
-- **Cross-platform**: Works on Windows, macOS, and Linux
-- **TypeScript Support**: Full TypeScript definitions included
-- **Well Tested**: Comprehensive test suite with 23+ tests passing
-- **Clone Compatibility**: Supports old ELM327 v1.5/v2.1 clones with compatibility modes
-- **CAN Bus Monitoring**: Capture raw CAN traffic with AT MA/AT MP commands
-- **Flow Control**: Full support for CAN flow control (AT FC SH/SD/SM/CFC)
-- **Freeze Frame**: Read snapshot data at moment of fault (Mode 02)
-- **Dynamic PID Scanning**: Automatically discover supported PIDs (00, 20, 40, 60...)
-- **Exponential Backoff**: Smart reconnection with increasing delays
-- **NRC Parsing**: Human-readable Negative Response Code messages
-- **BLE Smart Discovery**: Multiple UUID patterns for clone adapter support
-- **File Logging**: Persistent logging to file with RAW, PRETTY, or JSON formats
-
-## Installation
+[![npm version](https://img.shields.io/npm/v/elm327.svg)](https://www.npmjs.com/package/elm327)
+[![npm downloads](https://img.shields.io/npm/dm/elm327.svg)](https://www.npmjs.com/package/elm327)
+[![CI](https://github.com/edu-amr/elm327/actions/workflows/ci.yml/badge.svg)](https://github.com/edu-amr/elm327/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/elm327.svg)](LICENSE)
+[![node](https://img.shields.io/node/v/elm327.svg)](package.json)
 
 ```bash
-npm install elm327
+npx elm327 --demo      # simulated car, nothing to plug in
+npx elm327             # interactive setup for your real adapter
 ```
 
-or
+```
+ ELM327 v2  ● LIVE  Simulator  ·  ELM327 v2.1  ·  ISO 15765-4 (CAN 11/500)  ·  13.9 V               up 00:00:02  250 ms
+ RPM ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃    799 rpm
+     0             1             2             3           4             5             6             7
+╭─ Dashboard ───────────────────────────────╮ ╭─ Signals ──────────────────────────────────────────────────────────────╮
+│ RPM                  SPEED                │ │ Signal                        Value  Unit       Min       Max  Trend   │
+│    _  _  _                _               │ │ ───────────────────────────────────────────────────────────────────────│
+│     ||_||_|              | |              │ │ ▸ Engine speed                  799  rpm        795       805       █▁▄│
+│     | _| _|              |_|              │ │   Vehicle speed                   0  km/h         0         1       █▁▁│
+│ rpm                  km/h                 │ │   Engine coolant temper…         45  °C          45        45       ▁▁▁│
+│                                           │ │   Calculated engine load       25.9  %         25.9      26.3       █▁▁│
+│ Coolant  █▏░░░░░░░░░░░░░░░░░░░       45 °C│ │   Absolute throttle pos…          9  %            9         9        ▁▁│
+│ Load     █████▌░░░░░░░░░░░░░░░      25.9 %│ │   Intake air temperature         30  °C          30        30       ▁▁▁│
+│ Throttle █▉░░░░░░░░░░░░░░░░░░░         9 %│ │   Mass air flow rate           3.48  g/s       3.42      3.48       ▂▁█│
+│ Fuel     ███████████████▏░░░░░      72.2 %│ │   Fuel tank level              72.2  %         72.2      72.2       ▁▁▁│
+│ Battery  ██████████████▊░░░░░░      13.9 V│ │   Control module voltage       13.9  V         13.9      13.9       ▁▆█│
+╰───────────────────────────────────────────╯ ╰────────────────────────────────────────────────────────────────────────╯
+╭─ Trend · Engine speed ───────────────────────────╮ ╭─ Link health ──────────────────╮ ╭─ Latency ────────────────────╮
+│ 7,000 ┤                                          │ │   ⢀⣤⣶⣿⣿⣿⣿⣶⣤⡀    ● ok        45 │ │ <25ms  ████████████████▋░░ 21│
+│       ┤                                          │ │  ⣴⣿⣿⠿⠛⠉⠉⠛⠿⣿⣿⣦   ● no data    0 │ │ <50ms  ███████████████████ 24│
+│       ┤                                          │ │ ⣼⣿⣿⠃      ⠘⣿⣿⣧  ● failed     2 │ │ <100ms ░░░░░░░░░░░░░░░░░░░  0│
+│ 3,500 ┤                                          │ │     95.7%         timeout    0 │ │ <250ms ▊░░░░░░░░░░░░░░░░░░  1│
+│       ┤                                          │ │ ⢻⣿⣿⡄      ⢠⣿⣿⡟    reconn     0 │ │ <500ms ▊░░░░░░░░░░░░░░░░░░  1│
+│       ┤                                          │ │  ⠻⣿⣿⣶⣤⣀⣀⣤⣶⣿⣿⠟     req/s   23.3 │ │ ≥500ms ░░░░░░░░░░░░░░░░░░░  0│
+│     0 ┤⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉│ │   ⠈⠛⠿⣿⣿⣿⣿⠿⠛⠁                   │ │ avg 37ms  p95 37ms  last 28ms│
+│ now 799 rpm   min 795   avg 800   max 805        │ │                                │ │ ▁▇▇▄▂▄▆▇▂▃▁▄▃▅▆▂▃▄▁▄▃▄▄▄▅█▃▂▅│
+│                                                  │ │ ↑ 237 B   ↓ 1.0 KB             │ │                              │
+╰──────────────────────────────────────────────────╯ ╰────────────────────────────────╯ ╰──────────────────────────────╯
+╭─ Trouble codes · checked 04:47:26 ───────────╮ ╭─ Traffic ───────────────────────────────────────────────────────────╮
+│ ● MIL ON  2 stored codes                     │ │ 04:47:27.154 → 0111                                                 │
+│ P0301 Cylinder 1 misfire detected            │ │ 04:47:27.184 ← 7E8 03 41 11 17 00 00 00 00                          │
+│ P0420 Catalyst efficiency below threshold (b…│ │ 04:47:27.185 → 010F                                                 │
+```
+
+The first v1 version of this project (library only) in action: <https://x.com/edu_amr_/status/2051821164889030664>.
+
+## Highlights
+
+- **Live dashboard in your terminal**: tachometer strip with a green → yellow → red heat ramp, bar gauges, seven-segment readouts, braille line charts, a link-health donut, latency histogram, signal table with sparklines, trouble-code panel and a raw traffic log. Keyboard driven.
+- **Interactive setup** like `create-next-app`: pick the connection, the signals and the extras, then get the one-line command that reproduces your choices.
+- **Works without a car**: the simulator emulates an ELM327 on a CAN vehicle (drive cycle, warm-up, DTCs, freeze frame, multi-frame VIN, two ECUs, optional bus errors).
+- **A real OBD-II client**: 67 Mode 01 PIDs, DTCs (stored, pending, permanent) with descriptions, freeze frame, VIN / calibration ID / ECU name, PID discovery, raw CAN monitor.
+- **Correct protocol handling**: ISO-TP multi-frame reassembly, 11/29-bit CAN headers, negative response codes, protocol detection and tolerant initialization for old v1.5 clones.
+- **Built for the event loop**: one command in flight at a time, non-overlapping polling, buffered file logging, bounded memory.
+- **Metrics and exports**: success rate, latency percentiles, per-PID min/avg/max, JSON session report and log files.
+- **Typed end to end**: TypeScript definitions and typed events. Interface available in English and Brazilian Portuguese.
+
+## Install
 
 ```bash
-yarn add elm327
+npm install elm327        # library
+npx elm327                # CLI, no install needed
 ```
 
-## Quick Start
+Requires Node.js 18.3 or newer.
 
-### Serial Connection (USB)
+## Library
 
-```javascript
-const { OBD2Client, listSerialPorts } = require('elm327');
+```ts
+import { OBD2Client } from 'elm327';
 
-async function main() {
-  // List available serial ports
-  const ports = await listSerialPorts();
-  console.log('Available ports:', ports);
+const client = new OBD2Client({ type: 'serial', port: '/dev/ttyUSB0' });
+// { type: 'wifi', host: '192.168.0.10', port: 35000 }
+// { type: 'simulator' }                       <- no hardware needed
 
-  // Create client
-  const client = new OBD2Client({
-    type: 'serial',
-    port: '/dev/ttyUSB0', // or 'COM3' on Windows
-    baudRate: 38400,
-  });
-
-  // Connect and initialize
-  await client.connect();
-
-  // Read some basic parameters
-  const rpm = await client.getRPM();
-  const speed = await client.getSpeed();
-  const temp = await client.getCoolantTemperature();
-
-  console.log(`RPM: ${rpm}`);
-  console.log(`Speed: ${speed} km/h`);
-  console.log(`Coolant: ${temp}°C`);
-
-  await client.disconnect();
-}
-
-main().catch(console.error);
-```
-
-### TypeScript Example
-
-```typescript
-import { OBD2Client, ConnectionConfig, OBD2Response } from 'elm327';
-
-const config: ConnectionConfig = {
-  type: 'serial',
-  port: '/dev/ttyUSB0',
-  baudRate: 38400,
-  timeout: 5000,
-};
-
-const client = new OBD2Client(config);
-
-client.on('connected', () => console.log('Connected!'));
-client.on('response', (response: OBD2Response) => {
-  console.log(`${response.command}: ${response.value} ${response.unit}`);
-});
+client.on('error', (error) => console.error(error.message));
 
 await client.connect();
-const engineLoad = await client.getEngineLoad();
-```
 
-### WiFi Connection
+console.log(await client.getRPM(), 'rpm');
+console.log(await client.query('COOLANT_TEMP')); // { name, pid, value, unit, timestamp }
+console.log(await client.getDTCs()); // [{ code: 'P0301', description: '...' }]
+console.log(await client.getVIN());
 
-```javascript
-const { OBD2Client } = require('elm327');
-
-const client = new OBD2Client({
-  type: 'wifi',
-  host: '192.168.0.10', // Default ELM327 WiFi adapter IP
-  port: 35000, // Default ELM327 WiFi port
-});
-
-await client.connect();
-const rpm = await client.getRPM();
-console.log(`RPM: ${rpm}`);
 await client.disconnect();
 ```
 
-### Bluetooth Connection (BLE)
+### Live data
 
-```typescript
-import { OBD2Client, ConnectionConfig } from 'elm327';
-
-const config: ConnectionConfig = {
-  type: 'bluetooth',
-  // Smart discovery will try multiple known UUIDs for clone support
-  flowControl: {
-    enabled: true,
-    header: '0x7E0', // CAN ID for flow control
-  },
-};
-
-const client = new OBD2Client(config);
-await client.connect();
+```ts
+client.addPoller('ENGINE_RPM');
+client.addPoller('VEHICLE_SPEED');
+client.on('pollData', ({ name, value, unit }) => console.log(name, value, unit));
+client.startPolling(500); // rounds never overlap; stopPolling() ends cleanly
 ```
 
-## API Documentation
+### Diagnostics
 
-### OBD2Client
-
-#### Constructor
-
-```typescript
-const client = new OBD2Client(config);
+```ts
+await client.getDTCs('pending'); // 'stored' (default) | 'pending' | 'permanent'
+await client.getStatus(); // { milOn, dtcCount }
+await client.getAllFreezeFrames(); // Mode 02 snapshot taken when the fault was stored
+await client.getSupportedPids(); // [0x04, 0x05, 0x0c, ...]
+await client.scanPids({ start: 0x00, end: 0x60 });
+await client.clearDTCs();
+await client.getVehicleInfo(); // vin, calibrationId, ecuName, obdStandard, fuelType
+await client.request(0x01, 0x0c); // raw request: { ecu, data: number[] }
 ```
 
-#### Config Options:
+### CAN monitor
 
-| Option | Type | Required | Default | Description |
-|--------|------|----------|---------|-------------|
-| `type` | `'serial' \| 'bluetooth' \| 'wifi'` | Yes | - | Connection type |
-| `port` | `string` | For serial | - | Serial port path (e.g., /dev/ttyUSB0, COM3) |
-| `address` | `string` | For bluetooth | - | Bluetooth device address (optional for Web Bluetooth API) |
-| `host` | `string` | For wifi | 192.168.0.10 | WiFi adapter IP address |
-| `port` | `string \| number` | For wifi | 35000 | WiFi adapter port |
-| `baudRate` | `number` | No | 38400 | Serial baud rate |
-| `timeout` | `number` | No | 5000 | Command timeout in milliseconds |
-| `lineEnding` | `string` | No | '\r' | Line ending character |
-| `maxLines` | `number` | No | 0 | Max log file lines (0 = unlimited). Oldest lines trimmed automatically |
-| `cloneCompatibility` | `'auto' \| 'strict' \| 'lenient' \| 'minimal'` | No | 'auto' | Clone compatibility mode |
-| `flowControl` | `object` | No | - | Flow control configuration |
-
-#### Clone Compatibility Modes
-
-- **`'auto'`**: Detect and adjust automatically (default)
-- **`'strict'`**: Full feature set, may fail on old clones
-- **`'lenient'`**: Skip unsupported commands, longer delays
-- **`'minimal'`**: Only essential commands (ATZ, ATE0, ATSP0)
-
- #### Flow Control Configuration
-
-```typescript
-flowControl: {
-  enabled: true,
-  header: '0x7E0', // CAN ID for flow control
-  data: '0x30',    // Flow control data byte
-  mode: 1,          // Flow control mode (optional)
-}
+```ts
+client.on('canFrame', (line) => console.log(line)); // "7E8 04 41 0C 1A F8 00 00"
+await client.startCANMonitor('7E8'); // optional 11-bit id filter
+await client.stopCANMonitor();
 ```
 
-#### Methods
+### Statistics, logging and session reports
 
-##### Connection Management
+```ts
+client.getStats(); // requests, successRate, latency { avg, p95, ... }, pids[] with min/avg/max/history
 
-```typescript
-await client.connect();                    // Connect to adapter and initialize
-await client.disconnect();                 // Disconnect from adapter
-await client.reset();                      // Reset adapter using ATZ (independent from reconnect)
-client.isConnected();                      // Check connection status
-client.getAdapterInfo();                   // Get adapter information (version, protocol, device)
-```
-
-##### Data Query Methods
-
-```typescript
-// Generic query methods
-await client.query(commandName);           // Query by command name (e.g., 'ENGINE_RPM')
-await client.queryPid(pid);                // Query by PID string (e.g., '010C')
-await client.queryMultiple([commands]);    // Query multiple parameters sequentially
-await client.queryCommand(command);        // Query with a custom OBD2Command object
-
-// Convenience methods
-await client.getRPM();                    // Engine RPM
-await client.getSpeed();                  // Vehicle speed (km/h)
-await client.getCoolantTemperature();      // Coolant temperature (°C)
-await client.getEngineLoad();              // Engine load (%)
-await client.getFuelLevel();              // Fuel level (%)
-await client.getThrottlePosition();       // Throttle position (%)
-
-// Oxygen sensor methods (NEW!)
-await client.query('O2S1_WR');            // O2 Sensor 1 Wide Range
-await client.query('O2S2_WR');            // O2 Sensor 2 Wide Range
-await client.query('O2S3_WR');            // O2 Sensor 3 Wide Range
-await client.query('O2S4_WR');            // O2 Sensor 4 Wide Range
-await client.query('O2S1_V');             // O2 Sensor 1 Voltage
-await client.query('O2S2_V');             // O2 Sensor 2 Voltage
-await client.query('O2S3_V');             // O2 Sensor 3 Voltage
-await client.query('O2S4_V');             // O2 Sensor 4 Voltage
-await client.query('O2S1_ST');            // O2 Sensor 1 Short Term Trim
-```
-
-##### Diagnostic Methods
-
-```typescript
-await client.getDTCs();                   // Get Diagnostic Trouble Codes (Mode 03)
-await client.clearDTCs();                 // Clear DTCs (Mode 04)
-await client.getFreezeFrame(pid);          // Get freeze frame data for specific PID (Mode 02)
-await client.getAllFreezeFrames();         // Get all available freeze frame data
-await client.getSupportedPids();           // Dynamically scan all supported PIDs
-await client.scanPids(mode, start, end);  // Scan PIDs in range with progress events
-
-// Vehicle Information
-await client.getVIN();                    // Get Vehicle Identification Number (Mode 09)
-await client.getCalibrationID();           // Get calibration ID
-await client.getVehicleInfo();             // Get all vehicle info
-await client.getProtocolInfo();            // Get protocol information
-
-// Diagnostic Requests (OpenXC-inspired)
-await client.sendDiagnosticRequest(config); // Send custom diagnostic request
-```
-
-##### CAN Bus Monitoring
-
-```typescript
-await client.startCANMonitor();            // Start monitoring all CAN traffic (AT MA)
-await client.stopCANMonitor();             // Stop CAN monitoring
-await client.startCANMonitorWithFilter('7E8'); // Monitor only frames matching CAN ID (AT CF + AT CM)
-// Note: Use Flow Control configuration for controlled CAN communication
-```
-
-##### Polling Methods
-
-```typescript
-client.setPollInterval(ms);                // Set global poll interval (default: 1000ms)
-client.addPoller(commandName);             // Add command to polling list
-client.startPolling(intervalMs);           // Start polling all added commands
-client.stopPolling();                      // Stop polling
-client.setAutoReconnect(enabled);         // Enable/disable auto-reconnect with exponential backoff
-```
-
-##### Logging Methods
-
-The logger is **disabled by default**. Enable it to write logs to a file:
-
-```typescript
-import { OBD2Client, LogFormat, LogLevel } from 'elm327';
-
-const client = new OBD2Client(config);
-
-// Enable logging with PRETTY format (NestJS-style)
 client.enableLogger({
   filePath: './obd2.log',
-  format: LogFormat.PRETTY,
+  format: 'json',
+  levels: ['warn', 'error', 'tx', 'rx'],
+  maxLines: 50_000,
 });
+// formats: 'pretty' | 'json' | 'raw'. At maxLines the file rotates to obd2.log.1
 
-// Or use RAW format (only the raw ELM327 response)
-client.enableLogger({
-  filePath: './obd2-raw.log',
-  format: LogFormat.RAW,
-});
-
-// Or use JSON format (one JSON object per line)
-client.enableLogger({
-  filePath: './obd2.json',
-  format: LogFormat.JSON,
-});
-
-// Filter by specific log levels
-client.enableLogger({
-  filePath: './obd2-errors.log',
-  levels: [LogLevel.ERROR, LogLevel.WARN],
-});
-
-// Limit file size (keeps only the newest 2000 lines, trims oldest)
-client.enableLogger({
-  filePath: './obd2.log',
-  format: LogFormat.JSON,
-  maxLines: 2000,
-});
-
-// Change maxLines at runtime
-client.setLoggerMaxLines(5000);
-
-// Change format at runtime
-client.setLoggerFormat(LogFormat.JSON);
-
-// Change levels at runtime
-client.setLoggerLevels([LogLevel.INFO, LogLevel.ERROR]);
-
-// Disable logging
-client.disableLogger();
+import { SessionRecorder } from 'elm327';
+const recorder = new SessionRecorder();
+client.on('response', (r) => recorder.add(r));
+await recorder.save('session.json', recorder.report(client.getStats(), client.getAdapterInfo()));
 ```
 
-###### Log Formats
+### Reconnection and errors
 
-| Format | Description | Example |
-|--------|-------------|---------|
-| `LogFormat.RAW` | Raw ELM327 response only | `41 0C 1A F8` |
-| `LogFormat.PRETTY` | NestJS-style formatted log | `[2026-05-07 10:30:45] CMD [OBD2Client] 010C {"name":"ENGINE_RPM"}` |
-| `LogFormat.JSON` | One JSON object per line | `{"timestamp":"2026-05-07T10:30:45.000Z","level":"CMD","context":"OBD2Client","message":"010C","name":"ENGINE_RPM"}` |
+```ts
+client.setAutoReconnect(true); // exponential backoff 1s, 2s, 4s ... up to 30s, 10 attempts
+client.on('reconnecting', () => {});
+client.on('reconnected', () => {});
 
-###### Log Levels
-
-| Level | Description |
-|-------|-------------|
-| `LogLevel.INFO` | General information (connect, disconnect, etc.) |
-| `LogLevel.DEBUG` | Debug information |
-| `LogLevel.WARN` | Warning messages |
-| `LogLevel.ERROR` | Error messages |
-| `LogLevel.RAW_DATA` | Raw data from adapter |
-| `LogLevel.COMMAND` | Commands sent to adapter |
-| `LogLevel.RESPONSE` | Responses received from adapter |
-
-  #### Events
-
-```typescript
-client.on('connected', () => {});           // Connection established
-client.on('disconnected', () => {});       // Connection lost
-client.on('ready', (adapterInfo) => {});   // Adapter initialized successfully
-client.on('response', (response) => {});   // Decoded data received
-client.on('error', (error) => {});         // Error occurred
-client.on('rawData', (data) => {});        // Raw data from adapter
-client.on('pollData', (data) => {});       // Polling data received
-client.on('pollError', (command, error) => {}); // Polling error
-client.on('pollComplete', (results) => {}); // Polling complete
-client.on('scanProgress', (data) => {});   // PID scan progress updates
-client.on('scanComplete', (data) => {});  // PID scan completed
-client.on('reconnecting', () => {});       // Reconnection in progress
-client.on('reconnected', () => {});      // Reconnection successful
-client.on('canData', (data) => {});        // CAN frame received (monitor mode)
-client.on('adapterReset', () => {});      // Adapter reset completed
-client.on('debug', (data) => {});          // Debug information
-```
-
-### Available Commands
-
-| Command | Description | Unit |
-|---------|-------------|------|
-| ENGINE_LOAD | Calculated engine load | % |
-| COOLANT_TEMP | Engine coolant temperature | °C |
-| FUEL_PRESSURE | Fuel pressure | kPa |
-| INTAKE_PRESSURE | Intake manifold absolute pressure | kPa |
-| ENGINE_RPM | Engine speed | rpm |
-| VEHICLE_SPEED | Vehicle speed | km/h |
-| TIMING_ADVANCE | Timing advance | ° |
-| INTAKE_TEMP | Intake air temperature | °C |
-| MAF_RATE | Mass air flow sensor air flow rate | g/s |
-| THROTTLE_POS | Absolute throttle position | % |
-| OBD_STANDARDS | OBD standards compliance | - |
-| RUNTIME | Run time since engine start | seconds |
-| FUEL_LEVEL | Fuel tank level input | % |
-| BAROMETRIC_PRESSURE | Absolute barometric pressure | kPa |
-| AMBIENT_TEMP | Ambient air temperature | °C |
-| VIN | Vehicle Identification Number | - |
-| O2S1_WR | O2 Sensor 1 Wide Range | - |
-| O2S2_WR | O2 Sensor 2 Wide Range | - |
-| O2S3_WR | O2 Sensor 3 Wide Range | - |
-| O2S4_WR | O2 Sensor 4 Wide Range | - |
-| O2S1_V | O2 Sensor 1 Voltage | V |
-| O2S2_V | O2 Sensor 2 Voltage | V |
-| O2S3_V | O2 Sensor 3 Voltage | V |
-| O2S4_V | O2 Sensor 4 Voltage | V |
-| O2S1_ST | O2 Sensor 1 Short Term Trim | % |
-
-### Utility Functions
-
-```typescript
-import { listSerialPorts, isBluetoothAvailable, getAllCommands, createOBD2Client } from 'elm327';
-
-// List available serial ports
-const ports = await listSerialPorts();
-
-// Check if Bluetooth is available (browser only)
-const btAvailable = await isBluetoothAvailable();
-
-// Get all predefined OBD2 commands
-const commands = getAllCommands();
-
-// Create client with convenience function
-const client = createOBD2Client(config);
-```
-
-## Hardware Compatibility
-
-### Supported OBD2 Adapters
-
-- ELM327-based adapters (USB, Bluetooth, WiFi)
-- OBDLink adapters
-- UniCarScan adapters
-- Generic OBD2 interfaces
-
-### Tested Adapters
-
-- ELM327 USB
-- ELM327 Bluetooth
-- Vgate iCar Pro Bluetooth
-- BAFX Products Bluetooth OBD2
-- Generic ELM327 WiFi adapters
-- **Old clones (v1.5/v2.1)** with `cloneCompatibility` mode
-
-### Connection Types
-
-#### Serial (USB/RS232)
-- Most reliable connection method
-- Typically uses `/dev/ttyUSB0` on Linux, `COM3` on Windows
-- Standard baud rates: 9600, 38400, 115200
-- For old clones: use `cloneCompatibility: 'lenient'` or `'minimal'`
-
-#### Bluetooth
-
-- **In browsers**: uses Web Bluetooth API (BLE only) - no address needed (uses UUID scan)
-- **In Node.js**: use SerialConnection with a paired device
-- **Linux**: `rfcomm connect /dev/rfcomm0 <MAC>` then use SerialConnection
-- **macOS**: use `/dev/tty.*` device after pairing
-- **Smart Discovery**: Automatically tries multiple known UUIDs for clone support
-- **Note**: For Web Bluetooth, `address` is optional (scans for devices automatically)
-
-#### WiFi (TCP)
-- Connects over TCP/IP to WiFi ELM327 adapters
-- Default: 192.168.0.10:35000
-- Requires connecting to the adapter's WiFi network first
-
-## Examples
-
-The library includes several examples in the `examples/` directory:
-
-### Basic Usage
-```bash
-npm run build
-
-# Auto-detect serial port:
-npm run example:basic
-
-# Or specify a port:
-npm run example:basic -- /dev/ttyUSB0
-```
-
-### Real-time Monitoring
-```bash
-# Real-time monitoring (port required):
-npm run example:monitoring -- /dev/ttyUSB0
-```
-
-### WiFi Connection
-```bash
-npm run example:wifi
-```
-
-### New Examples (Added!)
-
-#### Flow Control
-```bash
-npx ts-node examples/flow-control.ts /dev/ttyUSB0
-```
-Demonstrates CAN flow control (AT FC SH/SD/SM/CFC) for controlled communication.
-
-#### CAN Bus Monitor
-
-```bash
-npx ts-node examples/can-monitor.ts /dev/ttyUSB0
-```
-Captures raw CAN traffic using AT MA (Monitor All) command.
-
-#### CAN Bus Monitor with Filter
-
-```bash
-npx ts-node examples/can-monitor-with-filter.ts 7E8
-```
-Monitors only frames matching the specified CAN ID (uses AT CF + AT CM commands).
-
-#### PID Scanner
-```bash
-npx ts-node examples/pid-scanner.ts /dev/ttyUSB0
-```
-Dynamically scans all supported PIDs with progress events.
-
-#### Clone Compatibility
-```bash
-npx ts-node examples/clone-compat.ts /dev/ttyUSB0 lenient
-```
-Demonstrates clone compatibility modes for old ELM327 v1.5/v2.1 adapters.
-
-#### Reset Adapter
-```bash
-npx ts-node examples/reset-adapter.ts /dev/ttyUSB0
-```
-Shows how to reset the adapter independently using ATZ without reconnecting.
-
-#### Bluetooth BLE
-```bash
-npx ts-node examples/bluetooth-ble.ts
-```
-Demonstrates BLE smart discovery with multiple UUID patterns.
-
-#### Freeze Frame
-```bash
-npx ts-node examples/freeze-frame.ts /dev/ttyUSB0
-```
-Reads freeze frame data (Mode 02) captured at the moment of fault.
-
-### Real-time Monitoring Example
-
-```javascript
-const { OBD2Client } = require('elm327');
-
-const client = new OBD2Client({
-  type: 'serial',
-  port: '/dev/ttyUSB0',
-});
-
-await client.connect();
-
-// Monitor key parameters every 2 seconds
-setInterval(async () => {
-  try {
-    const data = await client.queryMultiple([
-      'ENGINE_RPM',
-      'VEHICLE_SPEED',
-      'COOLANT_TEMP',
-      'ENGINE_LOAD',
-    ]);
-
-    console.log('Vehicle Data:', data);
-  } catch (error) {
-    console.error('Monitoring error:', error.message);
-  }
-}, 2000);
-```
-
-## Error Handling
-
-```javascript
-const { OBD2Client, ConnectionError, TimeoutError, ProtocolError } = require('elm327');
-
-const client = new OBD2Client(config);
-
-client.on('error', (error) => {
-  if (error.code === 'CONNECTION_ERROR') {
-    console.log('Connection lost, attempting to reconnect...');
-  } else if (error.code === 'TIMEOUT_ERROR') {
-    console.log('Command timed out');
-  } else if (error.code === 'PROTOCOL_ERROR') {
-    console.log('Protocol error:', error.message);
-  }
-});
-
+import { NoDataError, TimeoutError, ConnectionError, NegativeResponseError } from 'elm327';
 try {
-  await client.connect();
+  await client.query('EGR_COMMANDED');
 } catch (error) {
-  console.error('Failed to connect:', error.message);
+  if (error instanceof NoDataError) console.log('PID not supported by this vehicle');
 }
 ```
 
-### Negative Response Codes (NRC)
+An `error` event without a listener is logged, never thrown.
 
-The library now parses NRC (Negative Response Codes) from diagnostic requests and provides human-readable messages:
+### Testing your own code without a car
 
-```typescript
-const response = await client.sendDiagnosticRequest({
-  mode: DiagnosticMode.CURRENT_DATA,
-  pid: 0x0d,
-});
-
-if (!response.success && response.negativeResponseCode) {
-  console.log(`NRC: ${response.negativeResponseMessage}`);
-  // Example: "Request Out of Range (0x31)"
-}
-```
-
-## Custom Command Decoder
-
-```typescript
-import { OBD2Client, OBD2Command } from 'elm327';
-
-// Define a custom command
-const customCommand: OBD2Command = {
-  name: 'CUSTOM_PARAM',
-  pid: '0150',
-  description: 'Custom parameter',
-  decoder: (data: string) => {
-    const value = parseInt(data.substring(4, 6), 16);
-    return value * 0.5;
-  },
-  unit: 'custom_unit',
-};
-
-const client = new OBD2Client(config);
-await client.connect();
-
-const response = await client.queryCommand(customCommand);
-console.log(`Custom param: ${response.value} ${response.unit}`);
-```
-
-### Logging to File
-
-```typescript
-import { OBD2Client, LogFormat, LogLevel } from 'elm327';
-
+```ts
 const client = new OBD2Client({
-  type: 'serial',
-  port: '/dev/ttyUSB0',
+  type: 'simulator',
+  simulator: { latencyMs: 1, dtcs: ['P0301'], errorRate: 0 },
 });
-
-// Enable JSON logging
-client.enableLogger({
-  filePath: './logs/obd2-session.json',
-  format: LogFormat.JSON,
-});
-
-await client.connect();
-
-// All commands and responses will be logged
-const rpm = await client.getRPM();
-const dtcs = await client.getDTCs();
-
-await client.disconnect();
-// Logger is automatically disabled on disconnect
 ```
 
-## Troubleshooting
+### Configuration
 
-### Common Issues
+| Option               | Type                                               | Default        | Description                                |
+| -------------------- | -------------------------------------------------- | -------------- | ------------------------------------------ |
+| `type`               | `'serial' \| 'wifi' \| 'bluetooth' \| 'simulator'` | required       | Transport                                  |
+| `port`               | `string \| number`                                 | -              | Serial path, or TCP port for WiFi (35000)  |
+| `host`               | `string`                                           | `192.168.0.10` | WiFi adapter address                       |
+| `baudRate`           | `number`                                           | `38400`        | Serial baud rate                           |
+| `timeout`            | `number`                                           | `5000`         | Per-command timeout in ms                  |
+| `protocol`           | `string`                                           | `'0'`          | ELM327 protocol for `ATSP` (0 = automatic) |
+| `cloneCompatibility` | `'auto' \| 'strict' \| 'lenient' \| 'minimal'`     | `'auto'`       | Initialization strictness for old clones   |
+| `flowControl`        | `{ header?, data?, mode? }`                        | -              | `AT FC SH/SD/SM` for ISO-TP                |
+| `simulator`          | `{ latencyMs?, errorRate?, dtcs? }`                | -              | Simulator behavior                         |
 
-#### Permission Denied (Linux/macOS)
+### Events
+
+`connected` · `ready(adapterInfo)` · `disconnected` · `reconnecting` · `reconnected` · `adapterReset` · `error` · `response` · `traffic({ direction, data })` · `canFrame` · `pollData` · `pollError` · `pollComplete` · `scanProgress`
+
+## CLI
+
+```
+npx elm327                         interactive setup (recommended)
+npx elm327 --demo                  simulated vehicle
+npx elm327 --serial /dev/ttyUSB0   USB or paired Bluetooth serial adapter
+npx elm327 --wifi 192.168.0.10     WiFi adapter
+```
+
+| Flag                   | Description                                                                 |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `--demo`, `--simulate` | Use the simulator                                                           |
+| `--serial <path>`      | Serial device (`COM3`, `/dev/ttyUSB0`, `/dev/tty.OBDII-...`)                |
+| `--baud <rate>`        | Serial baud rate (default 38400)                                            |
+| `--wifi <host[:port]>` | WiFi adapter                                                                |
+| `--pids <set>`         | `essentials`, `fuel`, `temperatures`, `emissions`, `all` or `NAME,NAME`     |
+| `--interval <ms>`      | Polling interval (default 500)                                              |
+| `--log <file>`         | Write a log file                                                            |
+| `--json <file>`        | Write a JSON session report on exit                                         |
+| `--no-dtc`             | Do not read trouble codes                                                   |
+| `--no-reconnect`       | Do not reconnect automatically                                              |
+| `--lang <code>`        | Interface language (`en`, `pt-BR`). Also `ELM327_LANG` or the system `LANG` |
+| `--list-ports`         | List serial ports                                                           |
+| `--once`               | Print one frame and exit (useful for docs and CI)                           |
+
+**Keys:** `q` quit · `p` pause · `←` `→` choose the chart signal · `+` `-` polling rate · `d` read codes · `c` clear codes · `l` toggle traffic · `r` reset adapter · `s` save report.
+
+Signals that the vehicle does not support are dropped automatically after connecting.
+
+## Supported signals
+
+Mode 01 (SAE J1979). Decoders follow the standard formulas; O2 sensors 3 to 8 follow the same pattern (`O2S3_V` ... `O2S8_WR`).
+
+| Name                     | Request | Unit | Description                                         |
+| ------------------------ | ------- | ---- | --------------------------------------------------- |
+| `DTC_STATUS`             | `0101`  | -    | Monitor status since DTCs cleared                   |
+| `FUEL_SYSTEM_STATUS`     | `0103`  | -    | Fuel system 1 status                                |
+| `ENGINE_LOAD`            | `0104`  | %    | Calculated engine load                              |
+| `COOLANT_TEMP`           | `0105`  | °C   | Engine coolant temperature                          |
+| `SHORT_FUEL_TRIM_1`      | `0106`  | %    | Short term fuel trim bank 1                         |
+| `LONG_FUEL_TRIM_1`       | `0107`  | %    | Long term fuel trim bank 1                          |
+| `SHORT_FUEL_TRIM_2`      | `0108`  | %    | Short term fuel trim bank 2                         |
+| `LONG_FUEL_TRIM_2`       | `0109`  | %    | Long term fuel trim bank 2                          |
+| `FUEL_PRESSURE`          | `010A`  | kPa  | Fuel pressure (gauge)                               |
+| `INTAKE_PRESSURE`        | `010B`  | kPa  | Intake manifold absolute pressure                   |
+| `ENGINE_RPM`             | `010C`  | rpm  | Engine speed                                        |
+| `VEHICLE_SPEED`          | `010D`  | km/h | Vehicle speed                                       |
+| `TIMING_ADVANCE`         | `010E`  | °    | Timing advance before TDC                           |
+| `INTAKE_TEMP`            | `010F`  | °C   | Intake air temperature                              |
+| `MAF_RATE`               | `0110`  | g/s  | Mass air flow rate                                  |
+| `THROTTLE_POS`           | `0111`  | %    | Absolute throttle position                          |
+| `OBD_STANDARDS`          | `011C`  | -    | OBD standard the vehicle conforms to                |
+| `RUNTIME`                | `011F`  | s    | Run time since engine start                         |
+| `DISTANCE_WITH_MIL`      | `0121`  | km   | Distance traveled with MIL on                       |
+| `FUEL_RAIL_PRESSURE_REL` | `0122`  | kPa  | Fuel rail pressure relative to manifold             |
+| `FUEL_RAIL_PRESSURE`     | `0123`  | kPa  | Fuel rail gauge pressure (diesel, direct injection) |
+| `O2S1_V`                 | `0114`  | V    | O2 sensor 1 voltage and short term fuel trim        |
+| `O2S1_WR`                | `0124`  | λ    | O2 sensor 1 wide range lambda and voltage           |
+| `O2S2_V`                 | `0115`  | V    | O2 sensor 2 voltage and short term fuel trim        |
+| `O2S2_WR`                | `0125`  | λ    | O2 sensor 2 wide range lambda and voltage           |
+| `EGR_COMMANDED`          | `012C`  | %    | Commanded EGR                                       |
+| `EGR_ERROR`              | `012D`  | %    | EGR error                                           |
+| `EVAP_PURGE`             | `012E`  | %    | Commanded evaporative purge                         |
+| `FUEL_LEVEL`             | `012F`  | %    | Fuel tank level                                     |
+| `WARMUPS_SINCE_CLEAR`    | `0130`  | -    | Warm-ups since codes cleared                        |
+| `DISTANCE_SINCE_CLEAR`   | `0131`  | km   | Distance since codes cleared                        |
+| `EVAP_PRESSURE`          | `0132`  | Pa   | Evaporative system vapor pressure                   |
+| `BAROMETRIC_PRESSURE`    | `0133`  | kPa  | Absolute barometric pressure                        |
+| `CATALYST_TEMP_B1S1`     | `013C`  | °C   | Catalyst temperature B1S1                           |
+| `CATALYST_TEMP_B2S1`     | `013D`  | °C   | Catalyst temperature B2S1                           |
+| `CATALYST_TEMP_B1S2`     | `013E`  | °C   | Catalyst temperature B1S2                           |
+| `CATALYST_TEMP_B2S2`     | `013F`  | °C   | Catalyst temperature B2S2                           |
+| `CONTROL_MODULE_VOLTAGE` | `0142`  | V    | Control module voltage                              |
+| `ABSOLUTE_LOAD`          | `0143`  | %    | Absolute load value                                 |
+| `COMMANDED_LAMBDA`       | `0144`  | λ    | Commanded equivalence ratio                         |
+| `RELATIVE_THROTTLE`      | `0145`  | %    | Relative throttle position                          |
+| `AMBIENT_TEMP`           | `0146`  | °C   | Ambient air temperature                             |
+| `THROTTLE_POS_B`         | `0147`  | %    | Absolute throttle position B                        |
+| `ACCEL_PEDAL_D`          | `0149`  | %    | Accelerator pedal position D                        |
+| `ACCEL_PEDAL_E`          | `014A`  | %    | Accelerator pedal position E                        |
+| `COMMANDED_THROTTLE`     | `014C`  | %    | Commanded throttle actuator                         |
+| `TIME_WITH_MIL`          | `014D`  | min  | Engine run time with MIL on                         |
+| `TIME_SINCE_CLEAR`       | `014E`  | min  | Engine run time since codes cleared                 |
+| `FUEL_TYPE`              | `0151`  | -    | Fuel type                                           |
+| `ETHANOL_PERCENT`        | `0152`  | %    | Ethanol fuel percentage                             |
+| `RELATIVE_ACCEL_PEDAL`   | `015A`  | %    | Relative accelerator pedal position                 |
+| `HYBRID_BATTERY`         | `015B`  | %    | Hybrid battery pack remaining life                  |
+| `OIL_TEMP`               | `015C`  | °C   | Engine oil temperature                              |
+| `INJECTION_TIMING`       | `015D`  | °    | Fuel injection timing                               |
+| `FUEL_RATE`              | `015E`  | L/h  | Engine fuel rate                                    |
+
+Mode 02 (freeze frame), 03 / 07 / 0A (stored, pending, permanent DTCs), 04 (clear) and Mode 09 (VIN, calibration ID, ECU name) are available through dedicated methods.
+
+## Hardware and connections
+
+| Connection          | How                                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| USB / serial        | `--serial /dev/ttyUSB0` (Linux), `COM3` (Windows), `/dev/tty.usbserial-*` (macOS)                 |
+| Bluetooth (classic) | Pair with the OS, then use the serial port it creates (`/dev/rfcomm0`, `/dev/tty.OBDII-*`)        |
+| Bluetooth LE        | `type: 'bluetooth'` uses the Web Bluetooth API (browsers and runtimes with `navigator.bluetooth`) |
+| WiFi                | Join the adapter's network, default `192.168.0.10:35000`                                          |
+
+Tested against the simulator and ELM327-compatible adapters (USB, Bluetooth, WiFi, old v1.5 clones). Reports for other adapters are welcome.
+
+### Troubleshooting
+
+- **Permission denied on Linux:** `sudo usermod -a -G dialout $USER`, then log in again.
+- **No port listed:** `npx elm327 --list-ports`, try another USB port or cable.
+- **"Vehicle not responding":** the adapter answered but the car did not. Turn the ignition on; the client detects the protocol again by itself.
+- **Old clone fails to initialize:** `cloneCompatibility: 'lenient'` or `'minimal'` and a larger `timeout`.
+- **BUFFER FULL / bus errors:** lower the polling rate with `+`/`-` or select fewer signals.
+
+## Architecture
+
+```
+src/
+├── transport/   serial, tcp, ble: byte pipes with a tiny common interface
+├── simulator/   ELM327 emulator + vehicle model, exposed as a transport
+├── adapter/     ELM327 protocol: serialized command queue, timeouts, init sequence
+├── protocol/    pure functions: ISO-TP/frame parsing, PID decoders, DTC decoding
+├── client/      OBD2Client, the public facade
+├── stats/       metrics collector, ring buffer, JSON session recorder
+├── logger/      buffered file logger with rotation
+└── cli/         wizard, argument parsing, dashboard (state + pure view), chart primitives, i18n
+```
+
+`transport → adapter → protocol → client`, with `stats`, `logger` and `cli` observing the client. Key decisions:
+
+- **One command in flight.** The ELM327 is half duplex; the adapter queues commands and, after a timeout, discards the late reply instead of mixing it into the next command.
+- **Protocol code is pure.** Parsing and decoding never touch I/O, so they are tested with real-world response samples.
+- **The simulator is a transport.** The whole stack (init, queue, ISO-TP, decoders) runs in tests and demos exactly as with hardware.
+- **Event loop first.** No `setInterval` that can overlap work, timers are `unref`'d, logging is batched, dashboards repaint only changed lines, all buffers are bounded.
+- **The dashboard view is a pure function** `(state, size) -> lines`, which makes the UI testable without a terminal.
+
+## Translations
+
+Interface texts live in `src/cli/i18n/locales/*.json`. To add a language: copy `en.json` to `<code>.json`, translate the values (keep the `{placeholders}`), register it in `src/cli/i18n/index.ts` and run `npm test`; a test verifies that every key exists. Optional `pid.<NAME>` and `dtc.<CODE>` keys translate signal and trouble code descriptions.
+
+## Migrating from v1
+
+- `OBD2Response.command` is now `name`, and `pid` is included. `queryMultiple` failures are `{ name, error }`.
+- `getDTCs()` returns `{ code, description }[]` and accepts `'stored' | 'pending' | 'permanent'`.
+- `scanPids({ mode, start, end, signal })` replaces the positional arguments; progress arrives through `scanProgress`.
+- Events: `canData` is now `canFrame`; `rawData` and `debug` are replaced by `traffic`.
+- Logger: `LogFormat` and `LogLevel` are string unions (`'json'`, `'tx'`, ...); `maxLines` rotates the file to `<file>.1`.
+- O2 sensor PIDs were corrected: `O2Sx_V` is PID `0x14`-`0x1B` and `O2Sx_WR` is `0x24`-`0x2B`.
+- Removed: `ResponseMatcher`, `DiagnosticRequestBuilder`, `sendDiagnosticRequest`, `createOBD2Client`, `lineEnding`, `address`. Use `request(mode, pid)` for raw requests.
+- The library no longer writes to the console.
+- The `examples/` folder is gone: run `npx elm327 --demo` instead.
+
+## Development
+
 ```bash
-sudo chmod 666 /dev/ttyUSB0
-# or add user to dialout group
-sudo usermod -a -G dialout $USER
-```
-
-#### Port Not Found
-- Check if adapter is properly connected
-- Use `listSerialPorts()` to find available ports
-- Try different USB ports
-
-#### Adapter Not Responding
-- Verify adapter compatibility (ELM327 recommended)
-- Check baud rate settings
-- Ensure vehicle is running or ignition is on
-- For old clones, try `cloneCompatibility: 'lenient'` with longer timeout (10000ms+)
-
-#### Bluetooth Connection Issues
-- Pair adapter with system first
-- Check if adapter is already connected to another device
-- Verify Bluetooth permissions
-- Try BLE smart discovery (multiple UUIDs supported)
-
-#### WiFi Connection Issues
-- Ensure you are connected to the adapter's WiFi network
-- Verify IP address (default: 192.168.0.10) and port (default: 35000)
-- Check firewall settings
-
-#### BUFFER FULL on Cheap Clones
-- Use sequential queries instead of parallel (`queryMultiple` is sequential by design)
-- Increase timeout values
-- Use `cloneCompatibility: 'minimal'` mode
-
-### Debug Mode
-
-Enable debug logging using the events:
-
-```typescript
-const client = new OBD2Client(config);
-
-client.on('rawData', (data) => {
-  console.log('Raw data:', data);
-});
-
-client.on('debug', (data) => {
-  console.log('Debug:', data.message);
-});
-
-client.on('error', (error) => {
-  console.error('Debug error:', error);
-});
-```
-
-## Contributing
-
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
-
-See [CHANGELOG.md](CHANGELOG.md) for version history and changes.
-
-### Development Setup
-
-```bash
-git clone https://github.com/edu-amr/elm327.git
-cd elm327
+git clone https://github.com/edu-amr/elm327.git && cd elm327
 npm install
-npm run build
-npm test
+npm run demo        # dashboard against the simulator, from source
+npm test            # unit and end-to-end tests (simulator based)
+npm run lint && npm run typecheck && npm run build
 ```
 
-### Running Examples
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (checked by husky + commitlint). See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
 
-```bash
-npm run build
+## References
 
-# Auto-detect serial port:
-npm run example:basic
-
-# Or specify a port:
-npm run example:basic -- /dev/ttyUSB0
-
-# Real-time monitoring (port required):
-npm run example:monitoring -- /dev/ttyUSB0
-
-# New examples:
-npx ts-node examples/flow-control.ts /dev/ttyUSB0
-npx ts-node examples/can-monitor.ts /dev/ttyUSB0
-npx ts-node examples/pid-scanner.ts /dev/ttyUSB0
-npx ts-node examples/clone-compat.ts /dev/ttyUSB0 lenient
-npx ts-node examples/reset-adapter.ts /dev/ttyUSB0
-npx ts-node examples/freeze-frame.ts /dev/ttyUSB0
-```
-
-### Git Hooks
-
-This project uses Husky for git hooks:
-- **pre-commit**: Runs typecheck (`tsc --noEmit`) on staged `.ts` files
-- **commit-msg**: Validates commit messages using commitlint (conventional commits)
-
-```bash
-# Hooks are automatically installed after npm install
-# To skip hooks (not recommended): git commit --no-verify
-```
+- SAE J1979 / ISO 15031-5 (OBD-II services and PIDs), SAE J2012 (trouble codes), ISO 15765-2/4 (ISO-TP and CAN)
+- [ELM327 datasheet](https://www.elmelectronics.com/ic/elm327/) (Elm Electronics)
+- [OBD-II PIDs](https://en.wikipedia.org/wiki/OBD-II_PIDs) reference
+- [python-OBD](https://github.com/brendan-w/python-OBD) for the initialization and protocol detection flow
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Based on the ELM327 command set
-- Inspired by the OBD2 protocol specifications
-- Thanks to the automotive diagnostics community
-- OpenXC project for diagnostic request inspiration
-
-## Related Projects
-
-- [python-OBD](https://github.com/python-obd/python-OBD) — Python OBD2 library
-- [node-obd](https://github.com/andilabs/node-obd) — Another Node.js OBD library
-- [elm327-emulator](https://github.com/Ircama/elt) — ELM327 emulator for testing
-
-## Support
-
-For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/edu-amr/elm327).
+MIT, see [LICENSE](LICENSE).

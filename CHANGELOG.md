@@ -1,24 +1,49 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
+[Semantic Versioning](https://semver.org/).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-## [1.0.0] - 2026-05-05
+## [2.0.0] - 2026-10-13
 
 ### Added
 
-- Serial (USB/RS232) connection support via `serialport`
-- Bluetooth (BLE) connection support via Web Bluetooth API
-- WiFi (TCP/IP) connection support for ELM327 WiFi adapters
-- 18 predefined OBD2 commands with proper decoders (RPM, speed, coolant temp, etc.)
-- Vehicle identification number (VIN) retrieval (limited support on clones)
-- Automatic adapter initialization and protocol detection
-- Event-driven architecture for real-time monitoring
-- Full TypeScript definitions
-- `listSerialPorts()` and `isBluetoothAvailable()` utility functions
-- Convenience methods: `getRPM()`, `getSpeed()`, `getCoolantTemperature()`, etc.
-- `queryMultiple()` for sequential batch queries
-- `getSupportedPids()` for vehicle capability detection
-- `getVehicleInfo()` for comprehensive vehicle data
-- Custom command support via `queryCommand()`
+- `elm327` CLI (`npx elm327`): interactive setup and a live terminal dashboard with a heat-ramp
+  tachometer, bar gauges, braille line charts, a link-health donut, latency histogram, signal table,
+  trouble-code panel and traffic log.
+- Built-in ELM327 and vehicle simulator (`type: 'simulator'`, `npx elm327 --demo`).
+- Statistics collector (`client.getStats()`), JSON session reports and a buffered file logger with rotation.
+- 67 Mode 01 PIDs, pending and permanent DTCs with descriptions, MIL status, ECU name, battery voltage.
+- Interface translations (`en`, `pt-BR`) in `src/cli/i18n/locales`.
+- Typed client events; `NoDataError` and `NegativeResponseError`.
+
+### Changed
+
+- Rewritten around `transport -> adapter -> protocol -> client` layers.
+- Protocol detection runs during `connect()`; headers are enabled only for CAN and ISO-TP frames are
+  reassembled (11 and 29 bit ids, multi-ECU responses, the adapter's multi-line format).
+- Commands are serialized; after a timeout the late reply is discarded instead of corrupting the next command.
+- Polling uses non-overlapping rounds; reconnection uses exponential backoff and can be cancelled.
+- `getDTCs()` returns objects with descriptions; `scanPids()` takes an options object.
+- Node.js 18.3 or newer is required. The package ships only `dist/`.
+
+### Fixed
+
+- DTC parsing broke when CAN headers were enabled and ignored the Mode 03 count byte.
+- Supported-PID parsing skipped two data bytes and stopped at the wrong page.
+- `BUS INIT: OK` was treated as an error; `NO DATA` was not distinguished from failures.
+- Freeze frame requests omitted the frame number.
+- O2 sensor PIDs were mapped to the wrong identifiers.
+- Emitting `error` without a listener crashed the process.
+- Heartbeat and reconnect timers kept the process alive.
+- `reset()` left the adapter in its default (echo on, linefeeds on) state.
+- Initialization sent unsupported commands (`ATCS0`) and printed warnings to the console.
+
+### Removed
+
+- `examples/`, `ResponseMatcher`, `DiagnosticRequestBuilder`, `sendDiagnosticRequest`, `createOBD2Client`,
+  the `lineEnding` and `address` options. See the migration notes in the README.
+
+## [1.0.5] and earlier
+
+See the git history. Version 1 was library only.
