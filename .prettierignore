@@ -2,3 +2,9 @@ dist
 coverage
 package-lock.json
 CHANGELOG.md
+web/src/components/ui
+web/src/components/arc
+web/src/components/evilcharts
+web/src/components/ElectricBorder.tsx
+web/src/components/GlareHover.tsx
+web/components.json

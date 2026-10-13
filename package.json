@@ -13,7 +13,7 @@
   },
   "scripts": {
     "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "tsc -p tsconfig.build.json && vite build --config web/vite.config.mts",
+    "build": "tsc -p tsconfig.build.json && npm run build -w elm327-web",
     "start": "node dist/cli/index.js",
     "dev": "tsx src/cli/index.ts",
     "demo": "tsx src/cli/index.ts --demo",
@@ -26,7 +26,7 @@
     "test:coverage": "jest --coverage",
     "prepublishOnly": "npm run lint && npm test && npm run build",
     "prepare": "husky",
-    "web:dev": "vite --config web/vite.config.mts"
+    "web:dev": "npm run dev -w elm327-web"
   },
   "keywords": [
     "elm327",
@@ -92,8 +92,7 @@
     "ts-jest": "^29.2.5",
     "tsx": "^4.23.15",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.71.2",
-    "vite": "^5.4.21"
+    "typescript-eslint": "^8.71.2"
   },
   "dependencies": {
     "serialport": "^12.0.0"
@@ -105,9 +104,13 @@
     "dist",
     "README.md",
     "LICENSE",
+    "NOTICE.md",
     "CHANGELOG.md"
   ],
   "bin": {
     "elm327": "dist/cli/index.js"
-  }
+  },
+  "workspaces": [
+    "web"
+  ]
 }
