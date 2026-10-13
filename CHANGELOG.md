@@ -14,7 +14,11 @@ All notable changes to this project are documented here. The format follows
 - Built-in ELM327 and vehicle simulator (`type: 'simulator'`, `npx elm327 --demo`).
 - Statistics collector (`client.getStats()`), JSON session reports and a buffered file logger with rotation.
 - 67 Mode 01 PIDs, pending and permanent DTCs with descriptions, MIL status, ECU name, battery voltage.
-- Interface translations (`en`, `pt-BR`) in `src/cli/i18n/locales`.
+- Interface translations (`en`, `pt-BR`) in `src/cli/i18n/locales`; the language is detected from the OS
+  (not only `LANG`) and can be chosen in the setup or with `--lang`.
+- The setup asks about everything not given as a flag, including the options that do not show on the
+  dashboard: log file, format (`pretty`, `json`, `raw`), detail and rotation, JSON session report,
+  adapter compatibility and simulator behavior. `--yes` skips every question.
 - Typed client events; `NoDataError` and `NegativeResponseError`.
 
 ### Changed

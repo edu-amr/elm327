@@ -192,21 +192,24 @@ npx elm327 --serial /dev/ttyUSB0   USB or paired Bluetooth serial adapter
 npx elm327 --wifi 192.168.0.10     WiFi adapter
 ```
 
-| Flag                   | Description                                                                 |
-| ---------------------- | --------------------------------------------------------------------------- |
-| `--demo`, `--simulate` | Use the simulator                                                           |
-| `--serial <path>`      | Serial device (`COM3`, `/dev/ttyUSB0`, `/dev/tty.OBDII-...`)                |
-| `--baud <rate>`        | Serial baud rate (default 38400)                                            |
-| `--wifi <host[:port]>` | WiFi adapter                                                                |
-| `--pids <set>`         | `essentials`, `fuel`, `temperatures`, `emissions`, `all` or `NAME,NAME`     |
-| `--interval <ms>`      | Polling interval (default 500)                                              |
-| `--log <file>`         | Write a log file                                                            |
-| `--json <file>`        | Write a JSON session report on exit                                         |
-| `--no-dtc`             | Do not read trouble codes                                                   |
-| `--no-reconnect`       | Do not reconnect automatically                                              |
-| `--lang <code>`        | Interface language (`en`, `pt-BR`). Also `ELM327_LANG` or the system `LANG` |
-| `--list-ports`         | List serial ports                                                           |
-| `--once`               | Print one frame and exit (useful for docs and CI)                           |
+The interactive setup asks only what you did not already say with a flag, so `npx elm327 --demo`
+still asks about the language, logging, report and the other settings that do not show on the
+dashboard. Use `-y` to skip every question. At the end it prints the one-line command that
+reproduces your answers.
+
+| Question (flag)                                                      | Choices                                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Language (`--lang`)                                                  | `en`, `pt-BR`; detected from `ELM327_LANG`, `LC_ALL`, the OS language, `LANG`   |
+| Connection (`--demo`, `--serial`, `--wifi`)                          | simulator, serial port and baud rate, WiFi host and port                        |
+| Adapter compatibility (`--compat`)                                   | `auto`, `lenient` (old clones), `minimal`, `strict`                             |
+| Simulator errors and trouble codes (`--sim-errors`, `--sim-dtc`)     | none, 3 %, 15 % of requests failing; with or without stored codes               |
+| Signals (`--pids`)                                                   | `essentials`, `fuel`, `temperatures`, `emissions`, `all`, `NAME,NAME`           |
+| Polling interval (`--interval`)                                      | 100 ms to 5 s                                                                   |
+| Trouble codes and reconnection (`--no-dtc`, `--no-reconnect`)        | on or off                                                                       |
+| Log file (`--log`, `--log-format`, `--log-level`, `--log-max-lines`) | `pretty`, `json` (JSON lines) or `raw`; errors, traffic or everything; rotation |
+| JSON session report (`--json`)                                       | file written on exit with statistics and every sample                           |
+
+Other flags: `--baud <rate>`, `--list-ports`, `--once` (print one frame and exit, handy for docs and CI), `-v`, `-h`.
 
 **Keys:** `q` quit · `p` pause · `←` `→` choose the chart signal · `+` `-` polling rate · `d` read codes · `c` clear codes · `l` toggle traffic · `r` reset adapter · `s` save report.
 
