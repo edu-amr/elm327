@@ -6,6 +6,7 @@ import { listSerialPorts } from '../transport';
 import { help, parseCliArgs } from './args';
 import { t } from '../i18n';
 import { runDashboard } from './dashboard/dashboard';
+import { runWeb } from './web';
 import { runWizard } from './wizard';
 import { theme } from './ui/ansi';
 
@@ -41,7 +42,10 @@ async function main(): Promise<number> {
   }
 
   const options = skipQuestions ? args.options : await runWizard(args);
-  const { sessionFile } = await runDashboard(options, { once: args.once });
+  const { sessionFile } =
+    options.view === 'web' && !args.once
+      ? await runWeb(options, packageVersion())
+      : await runDashboard(options, { once: args.once });
   if (options.log) out(`${theme.muted(t('cli.logSaved'))} ${options.log.file}`);
   if (sessionFile) out(`${theme.muted(t('cli.sessionSaved'))} ${sessionFile}`);
   return 0;

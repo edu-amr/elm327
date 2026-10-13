@@ -8,6 +8,7 @@ import type { ParsedArgs } from './args';
 import { availableLocales, currentLocale, localeName, setLocale, t } from '../i18n';
 import {
   DEFAULT_INTERVAL_MS,
+  DEFAULT_WEB_HOST,
   DEMO_DTCS,
   DEMO_ERROR_RATE,
   LOG_FILE_NAMES,
@@ -17,7 +18,7 @@ import {
   SIM_ERROR_CHOICES,
   sessionFileName,
 } from '../session/options';
-import type { CliOptions, LogDetail } from '../session/options';
+import type { CliOptions, LogDetail, ViewMode, WebSettings } from '../session/options';
 import { confirm, multiselect, select, text } from './prompts';
 import { bold, theme } from './ui/ansi';
 
@@ -48,6 +49,34 @@ async function chooseLanguage(current: string): Promise<string> {
     codes.map((code) => ({ label: localeName(code), value: code })),
     Math.max(0, codes.indexOf(current)),
   );
+}
+
+async function chooseView(): Promise<ViewMode> {
+  return select<ViewMode>(t('wizard.view.title'), [
+    {
+      label: t('wizard.view.terminal'),
+      value: 'terminal',
+      hint: t('wizard.view.terminal.hint'),
+    },
+    { label: t('wizard.view.web'), value: 'web', hint: t('wizard.view.web.hint') },
+  ]);
+}
+
+async function chooseWeb(current: WebSettings): Promise<WebSettings> {
+  const host = await select<string>(t('wizard.web.network.title'), [
+    {
+      label: t('wizard.web.network.local'),
+      value: DEFAULT_WEB_HOST,
+      hint: t('wizard.web.network.local.hint'),
+    },
+    {
+      label: t('wizard.web.network.lan'),
+      value: '0.0.0.0',
+      hint: t('wizard.web.network.lan.hint'),
+    },
+  ]);
+  const open = await confirm(t('wizard.web.open'));
+  return { ...current, host, open };
 }
 
 async function chooseConnection(): Promise<Target> {
@@ -263,6 +292,9 @@ export async function runWizard(args: ParsedArgs): Promise<CliOptions> {
   process.stdout.write(
     `\n${bold(theme.accent(' ELM327 '))}${theme.muted(`· ${t('app.tagline')}`)}\n\n`,
   );
+
+  if (!explicit.has('view')) options.view = await chooseView();
+  if (options.view === 'web' && !explicit.has('web')) options.web = await chooseWeb(options.web);
 
   if (!explicit.has('connection')) options = { ...options, ...(await chooseConnection()) };
 

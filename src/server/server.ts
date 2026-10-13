@@ -39,8 +39,8 @@ export interface WebServerOptions {
   port: number;
   version: string;
   language: string;
-  /** Directory with the built web app. Defaults to the one shipped with the package. */
-  staticDir?: string | undefined;
+  /** Directory with the built web app; defaults to the one shipped with the package, `false` serves none. */
+  staticDir?: string | false | undefined;
   /** Access token. Generated when omitted. */
   token?: string | undefined;
 }
@@ -219,7 +219,7 @@ export async function startWebServer(
   options: WebServerOptions,
 ): Promise<WebServer> {
   const token = options.token ?? randomBytes(18).toString('base64url');
-  const staticDir = options.staticDir ?? findWebDir();
+  const staticDir = options.staticDir === false ? undefined : (options.staticDir ?? findWebDir());
   const exposed = !isLoopbackHost(options.host);
   const locales = availableLocales().map((code) => ({ code, name: localeName(code) }));
   const meta = buildMeta(options.version, options.language, locales);

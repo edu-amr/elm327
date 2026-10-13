@@ -62,7 +62,7 @@ describe('web server', () => {
   const servers: WebServer[] = [];
 
   const serve = async (
-    extra: { host?: string; port?: number; staticDir?: string | undefined } = {},
+    extra: { host?: string; port?: number; staticDir?: string | false | undefined } = {},
   ) => {
     const server = await startWebServer(session, {
       host: extra.host ?? '127.0.0.1',
@@ -123,7 +123,7 @@ describe('web server', () => {
   });
 
   it('explains when the web UI is not built', async () => {
-    const reply = await call(await serve({ staticDir: undefined }), '/', { auth: false });
+    const reply = await call(await serve({ staticDir: false }), '/', { auth: false });
     expect(reply.status).toBe(503);
     expect(reply.body).toContain('Web UI not built');
   });
