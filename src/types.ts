@@ -1,165 +1,79 @@
-/**
- * Represents an OBD2 command with its decoder logic.
- */
-export interface OBD2Command {
-  name: string;
-  pid: string;
-  description: string;
-  decoder: (data: string) => number | string | boolean | string[] | Record<string, unknown>;
-  unit?: string;
-}
+export type ConnectionType = 'serial' | 'wifi' | 'bluetooth' | 'simulator';
 
 /**
- * Represents a decoded OBD2 response.
+ * - `auto`: detect old v1.5 clones and relax timings
+ * - `strict`: fail on any initialization error
+ * - `lenient`: tolerate optional command failures, longer delays
+ * - `minimal`: only ATZ, ATE0 and ATSP
  */
+export type CloneCompatibility = 'auto' | 'strict' | 'lenient' | 'minimal';
+
+export interface FlowControlConfig {
+  /** Header used for flow control frames (AT FC SH). */
+  header?: string;
+  /** Flow control data bytes (AT FC SD). */
+  data?: string;
+  /** Flow control mode (AT FC SM). */
+  mode?: number;
+}
+
+export interface SimulatorOptions {
+  /** Simulated response latency in milliseconds. Default 25. */
+  latencyMs?: number;
+  /** Probability (0..1) that a request fails with a bus error. Default 0. */
+  errorRate?: number;
+  /** Diagnostic trouble codes stored in the simulated ECU. */
+  dtcs?: string[];
+}
+
+export interface ConnectionConfig {
+  type: ConnectionType;
+  /** Serial device path, or TCP port for WiFi adapters (default 35000). */
+  port?: string | number;
+  /** WiFi adapter address (default 192.168.0.10). */
+  host?: string;
+  /** Serial baud rate (default 38400). */
+  baudRate?: number;
+  /** Per-command timeout in milliseconds (default 5000). */
+  timeout?: number;
+  cloneCompatibility?: CloneCompatibility;
+  /** ELM327 protocol passed to ATSP (default '0', automatic). */
+  protocol?: string;
+  flowControl?: FlowControlConfig;
+  simulator?: SimulatorOptions;
+}
+
+export interface AdapterInfo {
+  version: string;
+  device: string;
+  protocol: string;
+  /** True for ISO 15765-4 (CAN) protocols. */
+  can: boolean;
+  /** False when the adapter answered but the vehicle did not (ignition off). */
+  vehicleConnected: boolean;
+}
+
+export type PidValue =
+  number | string | boolean | string[] | Record<string, number | string | boolean>;
+
 export interface OBD2Response {
-  command: string;
-  value: number | string | boolean | string[] | Record<string, unknown>;
+  name: string;
+  /** Request string, e.g. "010C". */
+  pid: string;
+  value: PidValue;
   unit: string | undefined;
   timestamp: Date;
 }
 
-/**
- * Configuration options for establishing an OBD2 connection.
- */
-export interface ConnectionConfig {
-  type: 'bluetooth' | 'serial' | 'wifi';
-  address?: string;
-  port?: string | number;
-  host?: string;
-  baudRate?: number;
-  timeout?: number;
-  lineEnding?: string;
-  /**
-   * Flow Control configuration for ISO-TP multiframe messages (Mode 09, VIN, etc.)
-   * Only used with CAN-based protocols (6-B).
-   */
-  flowControl?: {
-    /** Flow Control header (AT FC SH) - typically the ECU response ID + 8 (e.g., 0x7E0 -> 0x7E8) */
-    header?: string;
-    /** Flow Control data bytes (AT FC SD) - up to 5 bytes */
-    data?: string;
-    /** Flow Control mode (AT FC SM) - 0: normal, 1: continuous, etc. */
-    mode?: number;
-    /** Enable/disable flow control (AT CFC) - true = on, false = off */
-    enabled?: boolean;
-  };
-  /**
-   * Clone compatibility mode for older ELM327 v1.5/v2.1 clones.
-   * - 'auto': Detect and adjust automatically (default)
-   * - 'strict': Full feature set, may fail on old clones
-   * - 'lenient': Skip unsupported commands, longer delays
-   * - 'minimal': Only essential commands (ATZ, ATE0, ATSP0)
-   */
-  cloneCompatibility?: 'auto' | 'strict' | 'lenient' | 'minimal';
-}
-
-/**
- * Information about the connected OBD2 adapter.
- */
-export interface OBD2AdapterInfo {
-  protocol: string;
-  version: string;
-  device: string;
-}
-
-/**
- * Supported OBD2 protocols for manual selection.
- */
-export enum OBD2Protocol {
-  AUTO = '0',
-  SAE_J1850_PWM = '1',
-  SAE_J1850_VPW = '2',
-  ISO_9141_2 = '3',
-  ISO_14230_4_KWP = '4',
-  ISO_14230_4_KWP_FAST = '5',
-  ISO_15765_4_CAN = '6',
-  ISO_15765_4_CAN_B = '7',
-  ISO_15765_4_CAN_C = '8',
-  ISO_15765_4_CAN_D = '9',
-  SAE_J1939_CAN = 'A',
-  USER1_CAN = 'B',
-  USER2_CAN = 'C',
-}
-
-/**
- * Diagnostic request modes (SAE J1979 / OBD-II)
- */
-export enum DiagnosticMode {
-  CURRENT_DATA = 0x01,
-  FREEZE_FRAME = 0x02,
-  STORED_DTC = 0x03,
-  CLEAR_DTC = 0x04,
-  O2_TEST_RESULTS = 0x05,
-  ONBOARD_MONITORING = 0x06,
-  PENDING_DTC = 0x07,
-  CONTROL_COMPONENT = 0x08,
-  VEHICLE_INFO = 0x09,
-  PERMANENT_DTC = 0x0a,
-}
-
-/**
- * Configuration for a diagnostic request
- */
-export interface DiagnosticRequestConfig {
-  bus?: number;
-  id?: number;
-  mode: DiagnosticMode | number;
-  pid?: number;
-  multipleResponses?: boolean;
-  frequency?: number;
-  payload?: string;
-  name?: string;
-}
-
-/**
- * Response from a diagnostic request
- */
-export interface DiagnosticResponse {
-  bus: number;
-  id: number;
-  mode: number | undefined;
-  pid?: number;
-  success: boolean;
-  negativeResponseCode?: number;
-  negativeResponseMessage?: string;
-  value?: number | string;
-  payload?: string;
-  frame?: number;
-  totalSize?: number;
+export interface Traffic {
+  direction: 'tx' | 'rx';
+  data: string;
   timestamp: Date;
 }
 
-/**
- * Log format options for file-based logging.
- */
-export enum LogFormat {
-  RAW = 'raw',
-  PRETTY = 'pretty',
-  JSON = 'json',
-}
+export type DtcKind = 'stored' | 'pending' | 'permanent';
 
-/**
- * Log level for filtering log entries.
- */
-export enum LogLevel {
-  INFO = 'INFO',
-  DEBUG = 'DEBUG',
-  WARN = 'WARN',
-  ERROR = 'ERROR',
-  RAW_DATA = 'RAW_DATA',
-  COMMAND = 'COMMAND',
-  RESPONSE = 'RESPONSE',
-}
-
-/**
- * Configuration for file-based logging.
- */
-export interface LoggerConfig {
-  enabled?: boolean;
-  filePath: string;
-  format?: LogFormat;
-  levels?: LogLevel[];
-  /** Maximum number of lines to keep in the log file. Oldest lines are trimmed first. Default: 0 (unlimited) */
-  maxLines?: number;
+export interface Dtc {
+  code: string;
+  description: string;
 }
