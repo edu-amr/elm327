@@ -70,7 +70,8 @@ export function Dashboard({ initial, meta }: { initial: WireState; meta: WireMet
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
 
-  const showProblems = (): void => {
+  const toggleProblems = (): void => {
+    if (open && tab === 'problems') return setOpen(false);
     setTab('problems');
     setOpen(true);
   };
@@ -83,7 +84,7 @@ export function Dashboard({ initial, meta }: { initial: WireState; meta: WireMet
           problems={problems}
           panelOpen={open}
           panelTab={tab}
-          onProblems={showProblems}
+          onProblems={toggleProblems}
           onTogglePanel={() =>
             open && tab === 'traffic' ? setOpen(false) : (setTab('traffic'), setOpen(true))
           }
@@ -110,7 +111,7 @@ export function Dashboard({ initial, meta }: { initial: WireState; meta: WireMet
           ) : null}
         </div>
       </div>
-      <StatusBar state={state} problems={problems} onProblems={showProblems} />
+      <StatusBar state={state} problems={problems} onProblems={toggleProblems} />
     </div>
   );
 }
