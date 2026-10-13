@@ -22,11 +22,13 @@ npx elm327             # interactive setup for your real adapter
 
 ![elm327 web dashboard running against the built-in simulator](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard-web.jpg)
 
+![elm327 web dashboard, light theme](https://raw.githubusercontent.com/edu-amr/elm327/main/docs/dashboard-web-light.jpg)
+
 The first v1 version of this project (library only) in action: <https://x.com/edu_amr_/status/2051821164889030664>.
 
 ## Highlights
 
-- **Two dashboards, same data**: pick the terminal or a web page when you start. The web version has analog dials, interactive charts with hover tooltips, clickable signals, a confirmation dialog for destructive actions, light and dark themes and a phone-friendly layout, with no framework and a ~10 KB (gzip) script.
+- **Two dashboards, same data**: pick the terminal or a web page when you start. The web version is an instrument-cluster style page: a shift-light strip, 270° dials with odometer digits, percentage gauges with state labels, live charts, clickable signals, a confirmation dialog for destructive actions, dark and light themes and a phone-friendly layout. It is built with React, shadcn/ui, EvilCharts and a few other open-source component libraries (see [NOTICE.md](NOTICE.md)) and works offline: fonts and scripts are bundled, nothing is fetched from a CDN.
 - **Live dashboard in your terminal**: tachometer strip with a green → yellow → red heat ramp, bar gauges, seven-segment readouts, braille line charts, a link-health donut, latency histogram, signal table with sparklines, trouble-code panel and a raw traffic log. Keyboard driven.
 - **Interactive setup** like `create-next-app`: pick the language, terminal or web, the connection, the signals and the extras, then get the one-line command that reproduces your choices.
 - **Works without a car**: the simulator emulates an ELM327 on a CAN vehicle (drive cycle, warm-up, DTCs, freeze frame, multi-frame VIN, two ECUs, optional bus errors).
@@ -189,7 +191,7 @@ reproduces your answers.
 
 ### Web dashboard
 
-`--web` serves the dashboard on `http://localhost:3327` (the next free port is used when it is busy) and opens your browser. The page updates live through Server-Sent Events and talks back through a small JSON API, all from one Node.js process.
+`--web` serves the dashboard on `http://localhost:3327` (the next free port is used when it is busy) and opens your browser. The page (React, Tailwind CSS v4, shadcn/ui and EvilCharts; Chakra Petch and Oxanium fonts) updates live through Server-Sent Events and talks back through a small JSON API, all from one Node.js process.
 
 - **Local by default.** It listens on `127.0.0.1` only. Requests with a foreign `Host` header are refused (DNS rebinding) and every API call needs a per-run token that is embedded in the page, so other websites cannot read your data or press buttons such as _Clear codes_.
 - **Your phone in the car.** `--host 0.0.0.0` also serves other devices on your network. The terminal prints addresses with an access token (`http://192.168.x.x:3327/?token=...`); without the token nothing is served.
@@ -299,7 +301,7 @@ src/
 ├── server/      HTTP + Server-Sent Events server for the web dashboard
 ├── i18n/        translation catalogs (en, pt-BR) used by the terminal and the web UI
 └── cli/         wizard, argument parsing, terminal dashboard (state + pure view), chart primitives
-web/             Vite + TypeScript web dashboard (canvas and SVG charts written in-house)
+web/             React + Vite web dashboard (shadcn/ui, EvilCharts, Tailwind CSS v4), built into dist/web
 ```
 
 `transport → adapter → protocol → client → session`, with `stats` and `logger` observing the client, and the terminal (`cli`) and web (`server` + `web`) views rendering the session. Key decisions:
@@ -335,6 +337,7 @@ git clone https://github.com/edu-amr/elm327.git && cd elm327
 npm install
 npm run demo        # terminal dashboard against the simulator, from source
 npm run web:dev     # web UI with hot reload (needs: ELM327_WEB_TOKEN=dev npx elm327 --demo --web --no-open, then open http://localhost:5173/?token=dev)
+                    # building the web UI needs Node.js 20.19 or newer; the published package runs on 18.3+
 npm test            # unit and end-to-end tests (simulator based)
 npm run lint && npm run typecheck && npm run build
 ```

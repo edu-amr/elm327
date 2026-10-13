@@ -29,7 +29,11 @@ npm run lint && npm run typecheck && npm test
 
 **A new language.** Copy `src/i18n/locales/en.json` to `<code>.json`, translate the values keeping `{placeholders}`, register it in `src/i18n/index.ts`, run `npm test`. `pid.<NAME>` and `dtc.<CODE>` keys are optional.
 
-**The web UI.** It lives in `web/` (Vite + TypeScript, no framework). Run `ELM327_WEB_TOKEN=dev npx elm327 --demo --web --no-open` in one terminal and `npm run web:dev` in another, then open `http://localhost:5173/?token=dev`. Keep chart math pure in `web/src/charts/scale.ts` so it stays testable, and share types with the server through `src/session/wire.ts` (use `import type` only).
+**The web UI.** It lives in `web/` (React, Vite, Tailwind CSS v4, shadcn/ui) as an npm workspace, so `npm install` at the root installs it. Building needs Node.js 20.19+. Run `ELM327_WEB_TOKEN=dev npx elm327 --demo --web --no-open` in one terminal and `npm run web:dev` in another, then open `http://localhost:5173/?token=dev`.
+
+- Your own components go in `web/src/components/dashboard`. Third-party components are copied with the shadcn CLI from `web/` (for example `npx shadcn@latest add @evilcharts/recharts-area-chart`) into `components/ui`, `components/arc`, `components/evilcharts` and kept as-is; they are excluded from ESLint and Prettier. Add the source and license to `NOTICE.md`.
+- Keep numeric/chart math pure in `web/src/lib` so it is covered by Jest, and share types with the server through `src/session/wire.ts` (`import type` only).
+- Everything must work offline: bundle fonts and assets, never load from a CDN.
 
 **An adapter quirk.** Reproduce it as a response sample, fix it in `src/adapter` or `src/protocol`, and describe the adapter in the pull request.
 
