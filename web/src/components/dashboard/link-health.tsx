@@ -45,8 +45,8 @@ export function LinkHealth({ state }: { state: WireState }) {
       title={t('panel.health')}
       hint={`↑ ${formatBytes(stats.bytesSent)} · ↓ ${formatBytes(stats.bytesReceived)}`}
     >
-      <div className='grid h-full grid-cols-[auto_1fr] items-center gap-4'>
-        <div className='relative aspect-square h-full max-h-[160px] min-h-[84px]'>
+      <div className='grid h-full grid-cols-[auto_1fr] grid-rows-[minmax(0,1fr)] items-center gap-4'>
+        <div className='relative aspect-square h-full max-h-[160px] min-h-0'>
           <EvilPieChart
             data={data}
             dataKey='value'

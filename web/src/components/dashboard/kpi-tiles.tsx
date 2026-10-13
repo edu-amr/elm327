@@ -56,7 +56,7 @@ export function KpiTiles({ state }: { state: WireState }) {
   return (
     <div
       className='arc-scope grid h-full min-h-0 grid-cols-2 grid-rows-2 gap-2'
-      style={{ '--text-3xl': '1.5rem' } as CSSProperties}
+      style={{ '--text-3xl': 'clamp(1.15rem, 3.2vh, 1.5rem)' } as CSSProperties}
     >
       {tiles.map((tile) => (
         <section
@@ -71,7 +71,9 @@ export function KpiTiles({ state }: { state: WireState }) {
             decimals={tile.decimals ?? 0}
             locale={locale}
           />
-          <span className='truncate text-[11px] text-muted-foreground'>{tile.context}</span>
+          <span className='truncate text-[11px] text-muted-foreground [@media(max-height:820px)]:hidden'>
+            {tile.context}
+          </span>
         </section>
       ))}
     </div>

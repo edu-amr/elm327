@@ -23,7 +23,7 @@ export function Dashboard({ initial, meta }: { initial: WireState; meta: WireMet
 
   const [open, setOpen] = usePersistent<boolean>(
     'elm327-panel-open',
-    true,
+    false,
     (raw) => raw === 'true',
   );
   const [tab, setTab] = usePersistent<PanelTab>('elm327-panel-tab', 'traffic', (raw) =>
@@ -45,7 +45,7 @@ export function Dashboard({ initial, meta }: { initial: WireState; meta: WireMet
   };
   const problems = state.dtcs.codes.length;
   const clampHeight = (value: number): number =>
-    Math.round(Math.min(Math.max(value, MIN_PANEL), window.innerHeight * 0.6));
+    Math.round(Math.min(Math.max(value, MIN_PANEL), window.innerHeight * 0.7));
 
   useEffect(() => {
     document.title = `ELM327 · ${state.title}`;
@@ -88,7 +88,7 @@ export function Dashboard({ initial, meta }: { initial: WireState; meta: WireMet
             open && tab === 'traffic' ? setOpen(false) : (setTab('traffic'), setOpen(true))
           }
         />
-        <div className='flex min-w-0 flex-1 flex-col'>
+        <div className='relative flex min-w-0 flex-1 flex-col'>
           <main className='min-h-0 flex-1 overflow-hidden max-lg:overflow-auto'>
             <Overview
               state={state}

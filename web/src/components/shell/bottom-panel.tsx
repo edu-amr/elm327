@@ -191,7 +191,7 @@ export function BottomPanel({
 
   return (
     <section
-      className='relative flex shrink-0 flex-col border-t border-border bg-card'
+      className='absolute inset-x-0 bottom-0 z-20 flex flex-col border-t border-border bg-card shadow-[0_-12px_32px_-12px_rgb(0_0_0/0.55)]'
       style={{ height }}
     >
       <div

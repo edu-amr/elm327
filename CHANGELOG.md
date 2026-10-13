@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Web dashboard: the traffic and trouble-code console now floats over the page instead of resizing it,
+  and starts closed (Ctrl+J or the rail icon opens it).
+
+### Fixed
+
+- Web dashboard: the link-health donut and the KPI tiles no longer get clipped on short screens.
+
 ## [2.1.0] - 2026-10-13
 
 ### Added
