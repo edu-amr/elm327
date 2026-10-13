@@ -24,29 +24,41 @@ export type PanelTab = 'traffic' | 'problems';
 type Filter = 'all' | 'tx' | 'rx' | 'warn';
 const ARROWS = { tx: '→', rx: '←', warn: '!' } as const;
 
+/** Lines carry no id, so a key is time + text + how many identical ones came before. */
+function keyed(lines: WireState['log']): { key: string; line: WireState['log'][number] }[] {
+  const seen = new Map<string, number>();
+  return lines.map((line) => {
+    const base = `${line.at}|${line.kind}|${line.text}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return { key: `${base}|${n}`, line };
+  });
+}
+
 function TrafficView({ state, filter }: { state: WireState; filter: Filter }) {
   const { t } = useI18n();
   const viewport = useRef<HTMLDivElement>(null);
-  const lines = useMemo(
-    () => state.log.filter((line) => filter === 'all' || line.kind === filter).slice(-200),
+  const rows = useMemo(
+    () => keyed(state.log.filter((line) => filter === 'all' || line.kind === filter).slice(-200)),
     [state.log, filter],
   );
-  const last = lines.at(-1)?.at;
+  const last = rows.at(-1)?.key;
 
   useEffect(() => {
     const node = viewport.current;
     if (node && node.scrollHeight - node.scrollTop - node.clientHeight < 90)
       node.scrollTop = node.scrollHeight;
-  }, [last, lines.length]);
+  }, [last]);
 
   return (
     <div ref={viewport} className='h-full overflow-auto bg-surface px-3 py-1.5'>
       <ol className='num text-[12px] leading-[1.55]'>
-        {lines.map((line, index) => (
+        {rows.map(({ key, line }) => (
           <li
-            key={`${line.at}-${index}`}
+            key={key}
             className={cn(
               'grid grid-cols-[92px_16px_1fr] gap-2',
+              'log-enter',
               line.kind === 'tx' && 'text-primary',
               line.kind === 'rx' && 'text-muted-foreground',
               line.kind === 'warn' && 'text-bad',
@@ -58,7 +70,7 @@ function TrafficView({ state, filter }: { state: WireState; filter: Filter }) {
           </li>
         ))}
       </ol>
-      {lines.length === 0 ? (
+      {rows.length === 0 ? (
         <p className='py-6 text-center text-muted-foreground'>{t('web.noTraffic')}</p>
       ) : null}
     </div>

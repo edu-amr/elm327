@@ -196,6 +196,23 @@
   letter-spacing: 0;
 }
 
+/* A new console line slides in from the left while a highlight fades off it. */
+@keyframes log-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+    background: color-mix(in oklab, var(--amber) 22%, transparent);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    background: transparent;
+  }
+}
+.log-enter {
+  animation: log-enter 0.45s cubic-bezier(0.2, 0, 0, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
