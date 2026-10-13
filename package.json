@@ -1,7 +1,7 @@
 {
   "name": "elm327",
-  "version": "2.0.1",
-  "description": "ELM327 OBD-II library and live terminal dashboard for Node.js and TypeScript: read RPM, speed, trouble codes and VIN over USB serial, WiFi or Bluetooth, with a built-in vehicle simulator.",
+  "version": "2.1.0",
+  "description": "ELM327 OBD-II library with a live dashboard in your terminal or browser for Node.js and TypeScript: read RPM, speed, trouble codes and VIN over USB serial, WiFi or Bluetooth, with a built-in vehicle simulator.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -13,11 +13,11 @@
   },
   "scripts": {
     "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && vite build --config web/vite.config.mts",
     "start": "node dist/cli/index.js",
     "dev": "tsx src/cli/index.ts",
     "demo": "tsx src/cli/index.ts --demo",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p web/tsconfig.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -25,7 +25,8 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "prepublishOnly": "npm run lint && npm test && npm run build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "web:dev": "vite --config web/vite.config.mts"
   },
   "keywords": [
     "elm327",
@@ -57,7 +58,12 @@
     "tui",
     "terminal-dashboard",
     "simulator",
-    "tachometer"
+    "tachometer",
+    "web-dashboard",
+    "dashboard",
+    "obd2-dashboard",
+    "gauge",
+    "real-time"
   ],
   "author": {
     "name": "Eduardo Amaro",
@@ -86,7 +92,8 @@
     "ts-jest": "^29.2.5",
     "tsx": "^4.23.15",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.71.2"
+    "typescript-eslint": "^8.71.2",
+    "vite": "^5.4.21"
   },
   "dependencies": {
     "serialport": "^12.0.0"
