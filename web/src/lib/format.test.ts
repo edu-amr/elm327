@@ -18,6 +18,11 @@ describe('web formatters', () => {
     expect(formatValue('Ethanol', 'en')).toBe('Ethanol');
   });
 
+  it('shows the monitor status compactly', () => {
+    expect(formatValue({ milOn: true, dtcCount: 2, ignition: 'spark' }, 'en')).toBe('MIL on · 2');
+    expect(formatValue({ milOn: false, dtcCount: 0, ignition: 'spark' }, 'en')).toBe('MIL off · 0');
+  });
+
   it('formats durations, sizes and percentages', () => {
     expect(formatDuration(3_725_000)).toBe('01:02:05');
     expect(formatDuration(-5)).toBe('00:00:00');

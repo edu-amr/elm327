@@ -40,11 +40,10 @@ describe('scale helpers', () => {
   });
 
   it('runs the heat ramp from green to red', () => {
-    expect(rampColor(0)).toBe('rgb(0 255 0)');
-    expect(rampColor(1)).toBe('rgb(215 0 0)');
+    expect(rampColor(0)).toBe('rgb(120 214 160)');
+    expect(rampColor(1)).toBe('rgb(226 84 78)');
     expect(rampColor(-5)).toBe(rampColor(0));
-    const mid = rampColor(0.5);
-    expect(mid).toMatch(/^rgb\(2\d\d 2\d\d 0\)$/);
+    expect(rampColor(0.5)).toMatch(/^rgb\(2\d\d 1\d\d \d+\)$/);
     expect(RAMP.length).toBeGreaterThan(5);
   });
 

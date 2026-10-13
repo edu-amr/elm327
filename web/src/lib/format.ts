@@ -12,6 +12,9 @@ export function formatValue(value: WirePidStats['value'], locale: string): strin
   if (typeof value === 'number') return formatNumber(value, locale);
   if (typeof value === 'boolean') return value ? 'yes' : 'no';
   if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object' && 'milOn' in value) {
+    return `${value['milOn'] ? 'MIL on' : 'MIL off'} · ${value['dtcCount']}`;
+  }
   if (typeof value === 'object') {
     return Object.entries(value)
       .map(

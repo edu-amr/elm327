@@ -3,20 +3,14 @@ export const clamp = (value: number, min: number, max: number): number =>
 
 export const lerp = (from: number, to: number, t: number): number => from + (to - from) * t;
 
-/** The same green -> yellow -> red ramp as the terminal tachometer. */
+/** Meter ramp: mint, through yellow and amber, to coral. Muted on purpose; no neon. */
 export const RAMP: ReadonlyArray<readonly [number, number, number]> = [
-  [0, 255, 0],
-  [95, 255, 0],
-  [135, 255, 0],
-  [175, 255, 0],
-  [215, 255, 0],
-  [255, 255, 0],
-  [255, 215, 0],
-  [255, 175, 0],
-  [255, 135, 0],
-  [255, 95, 0],
-  [255, 0, 0],
-  [215, 0, 0],
+  [120, 214, 160],
+  [160, 214, 120],
+  [214, 208, 100],
+  [240, 184, 76],
+  [238, 140, 70],
+  [226, 84, 78],
 ];
 
 /** Color for a position along the scale (ratio 0..1), smoothly interpolated. */
