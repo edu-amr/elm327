@@ -1,22 +1,29 @@
-import { listSerialPorts } from '../transport';
+import type { LogFormat } from '../logger/logger';
 import { PIDS } from '../protocol/pids';
 import type { PidGroup } from '../protocol/pids';
+import type { CloneCompatibility } from '../types';
+import { listSerialPorts } from '../transport';
 import { toCommandLine } from './args';
+import type { ParsedArgs } from './args';
+import { availableLocales, currentLocale, localeName, setLocale, t } from './i18n';
 import {
   DEFAULT_INTERVAL_MS,
   DEMO_DTCS,
   DEMO_ERROR_RATE,
+  LOG_FILE_NAMES,
+  LOG_ROTATION_CHOICES,
   PID_PRESETS,
   POLL_INTERVALS_MS,
+  SIM_ERROR_CHOICES,
   sessionFileName,
 } from './options';
-import type { CliOptions } from './options';
-import { t } from './i18n';
+import type { CliOptions, LogDetail } from './options';
 import { confirm, multiselect, select, text } from './prompts';
 import { bold, theme } from './ui/ansi';
 
 type ConnectionKind = 'simulator' | 'serial' | 'wifi';
-type Extra = 'dtc' | 'log' | 'json' | 'reconnect';
+type Behavior = 'dtc' | 'reconnect';
+type Target = Pick<CliOptions, 'connection' | 'label'>;
 
 const GROUP_TITLES: Record<PidGroup, string> = {
   engine: 'Engine',
@@ -32,7 +39,18 @@ const MANUAL = '__manual__';
 const validPort = (value: string): string | undefined =>
   /^\d+$/.test(value) && Number(value) <= 65535 ? undefined : t('wizard.wifi.portInvalid');
 
-async function chooseConnection(): Promise<Pick<CliOptions, 'connection' | 'label'>> {
+const hint = (text: string | undefined): { hint?: string } => (text ? { hint: text } : {});
+
+async function chooseLanguage(current: string): Promise<string> {
+  const codes = availableLocales();
+  return select(
+    t('wizard.language.title'),
+    codes.map((code) => ({ label: localeName(code), value: code })),
+    Math.max(0, codes.indexOf(current)),
+  );
+}
+
+async function chooseConnection(): Promise<Target> {
   const kind = await select<ConnectionKind>(t('wizard.connection.title'), [
     {
       label: t('wizard.connection.simulator'),
@@ -68,7 +86,7 @@ async function chooseConnection(): Promise<Pick<CliOptions, 'connection' | 'labe
     ...ports.map(({ path, manufacturer }) => ({
       label: path,
       value: path,
-      ...(manufacturer ? { hint: manufacturer } : {}),
+      ...hint(manufacturer),
     })),
     { label: t('wizard.serial.manual'), value: MANUAL },
   ]);
@@ -79,6 +97,42 @@ async function chooseConnection(): Promise<Pick<CliOptions, 'connection' | 'labe
     { label: '9600', value: 9600, hint: t('wizard.baud.old') },
   ]);
   return { label: `Serial ${port}`, connection: { type: 'serial', port, baudRate } };
+}
+
+async function chooseCompatibility(): Promise<CloneCompatibility> {
+  return select<CloneCompatibility>(t('wizard.compat.title'), [
+    {
+      label: t('wizard.compat.auto'),
+      value: 'auto',
+      hint: t('wizard.compat.auto.hint'),
+    },
+    {
+      label: t('wizard.compat.lenient'),
+      value: 'lenient',
+      hint: t('wizard.compat.lenient.hint'),
+    },
+    {
+      label: t('wizard.compat.minimal'),
+      value: 'minimal',
+      hint: t('wizard.compat.minimal.hint'),
+    },
+    {
+      label: t('wizard.compat.strict'),
+      value: 'strict',
+      hint: t('wizard.compat.strict.hint'),
+    },
+  ]);
+}
+
+async function chooseSimulator(): Promise<{ errorRate: number; dtcs: string[] }> {
+  const [none, some, many] = SIM_ERROR_CHOICES;
+  const errorRate = await select<number>(t('wizard.sim.errors.title'), [
+    { label: t('wizard.sim.errors.none'), value: none },
+    { label: t('wizard.sim.errors.some'), value: some },
+    { label: t('wizard.sim.errors.many'), value: many },
+  ]);
+  const withCodes = await confirm(t('wizard.sim.dtc'));
+  return { errorRate, dtcs: withCodes ? DEMO_DTCS : [] };
 }
 
 async function chooseSignals(): Promise<CliOptions['pids']> {
@@ -98,7 +152,7 @@ async function chooseSignals(): Promise<CliOptions['pids']> {
     t('wizard.signals.pick'),
     PIDS.filter((pid) => pid.mode === 0x01 && pid.bytes <= 2 && !pid.name.startsWith('O2S')).map(
       (pid) => ({
-        label: `${pid.name}`,
+        label: pid.name,
         value: pid.name,
         hint: `${GROUP_TITLES[pid.group]} · ${pid.description}`,
         selected: PID_PRESETS['essentials']!.pids.includes(pid.name),
@@ -108,39 +162,132 @@ async function chooseSignals(): Promise<CliOptions['pids']> {
   return picked.length > 0 ? picked : PID_PRESETS['essentials']!.pids;
 }
 
-/** Interactive setup, in the spirit of `create-next-app`. */
-export async function runWizard(): Promise<CliOptions> {
-  process.stdout.write(
-    `\n${bold(theme.accent(' ELM327 '))}${theme.muted(`· ${t('app.tagline')}`)}\n\n`,
-  );
-
-  const target = await chooseConnection();
-  const pids = await chooseSignals();
-  const intervalMs = await select<number>(
+async function chooseInterval(): Promise<number> {
+  return select<number>(
     t('wizard.interval.title'),
     POLL_INTERVALS_MS.map((ms) => ({
       label: `${ms} ms`,
       value: ms,
       ...(ms === DEFAULT_INTERVAL_MS ? { hint: t('wizard.interval.recommended') } : {}),
     })),
-    POLL_INTERVALS_MS.indexOf(DEFAULT_INTERVAL_MS as (typeof POLL_INTERVALS_MS)[number]),
+    POLL_INTERVALS_MS.findIndex((ms) => ms === DEFAULT_INTERVAL_MS),
   );
-  const extras = await multiselect<Extra>(t('wizard.extras.title'), [
-    { label: t('wizard.extras.dtc'), value: 'dtc', selected: true },
-    { label: t('wizard.extras.reconnect'), value: 'reconnect', selected: true },
-    { label: t('wizard.extras.json'), value: 'json', selected: true },
-    { label: t('wizard.extras.log'), value: 'log' },
-  ]);
+}
 
-  const options: CliOptions = {
-    ...target,
-    pids,
-    intervalMs,
-    readDtcs: extras.includes('dtc'),
-    autoReconnect: extras.includes('reconnect'),
-    ...(extras.includes('json') ? { jsonFile: sessionFileName() } : {}),
-    ...(extras.includes('log') ? { logFile: 'elm327.log' } : {}),
+async function chooseLog(): Promise<CliOptions['log']> {
+  if (!(await confirm(t('wizard.log.enable'), false))) return undefined;
+
+  const format = await select<LogFormat>(t('wizard.log.format.title'), [
+    {
+      label: t('wizard.log.format.pretty'),
+      value: 'pretty',
+      hint: t('wizard.log.format.pretty.hint'),
+    },
+    { label: t('wizard.log.format.json'), value: 'json', hint: t('wizard.log.format.json.hint') },
+    { label: t('wizard.log.format.raw'), value: 'raw', hint: t('wizard.log.format.raw.hint') },
+  ]);
+  const detail = await select<LogDetail>(
+    t('wizard.log.detail.title'),
+    [
+      { label: t('wizard.log.detail.errors'), value: 'errors' },
+      {
+        label: t('wizard.log.detail.traffic'),
+        value: 'traffic',
+        hint: t('wizard.log.detail.traffic.hint'),
+      },
+      { label: t('wizard.log.detail.all'), value: 'all' },
+    ],
+    1,
+  );
+  const file = await text(t('wizard.log.file'), LOG_FILE_NAMES[format]);
+  const maxLines = await select<number>(
+    t('wizard.log.rotation.title'),
+    LOG_ROTATION_CHOICES.map((lines) =>
+      lines === 0
+        ? { label: t('wizard.log.rotation.never'), value: 0 }
+        : {
+            label: t('wizard.log.rotation.after', { lines: lines.toLocaleString(currentLocale()) }),
+            value: lines,
+            hint: t('wizard.log.rotation.hint'),
+          },
+    ),
+    2,
+  );
+  return { file, format, detail, maxLines };
+}
+
+async function chooseReport(): Promise<string | undefined> {
+  const wanted = await confirm(`${t('wizard.report.enable')} (${t('wizard.report.hint')})`);
+  return wanted ? text(t('wizard.report.file'), sessionFileName()) : undefined;
+}
+
+async function chooseBehavior(
+  options: CliOptions,
+  explicit: ParsedArgs['explicit'],
+): Promise<Pick<CliOptions, 'readDtcs' | 'autoReconnect'>> {
+  const choices: Array<{ label: string; value: Behavior; selected: boolean }> = [];
+  if (!explicit.has('dtc')) {
+    choices.push({ label: t('wizard.extras.dtc'), value: 'dtc', selected: options.readDtcs });
+  }
+  if (!explicit.has('reconnect')) {
+    choices.push({
+      label: t('wizard.extras.reconnect'),
+      value: 'reconnect',
+      selected: options.autoReconnect,
+    });
+  }
+  if (choices.length === 0) return options;
+
+  const picked = await multiselect<Behavior>(t('wizard.behavior.title'), choices);
+  return {
+    readDtcs: explicit.has('dtc') ? options.readDtcs : picked.includes('dtc'),
+    autoReconnect: explicit.has('reconnect') ? options.autoReconnect : picked.includes('reconnect'),
   };
+}
+
+/**
+ * Interactive setup in the spirit of `create-next-app`. Anything already given
+ * on the command line is kept and not asked again.
+ */
+export async function runWizard(args: ParsedArgs): Promise<CliOptions> {
+  const { explicit } = args;
+  let options: CliOptions = { ...args.options };
+
+  if (!explicit.has('language')) {
+    options.language = await chooseLanguage(options.language);
+    setLocale(options.language);
+    if (options.connection.type === 'simulator') {
+      options.label = t('wizard.connection.simulator');
+    }
+  }
+  process.stdout.write(
+    `\n${bold(theme.accent(' ELM327 '))}${theme.muted(`· ${t('app.tagline')}`)}\n\n`,
+  );
+
+  if (!explicit.has('connection')) options = { ...options, ...(await chooseConnection()) };
+
+  const { connection } = options;
+  if (connection.type === 'simulator') {
+    if (!explicit.has('simulator')) {
+      options.connection = { ...connection, simulator: await chooseSimulator() };
+    }
+  } else if (!explicit.has('compat')) {
+    options.connection = { ...connection, cloneCompatibility: await chooseCompatibility() };
+  }
+
+  if (!explicit.has('pids')) options.pids = await chooseSignals();
+  if (!explicit.has('interval')) options.intervalMs = await chooseInterval();
+  options = { ...options, ...(await chooseBehavior(options, explicit)) };
+
+  if (!explicit.has('log')) {
+    const log = await chooseLog();
+    if (log) options.log = log;
+  }
+  if (!explicit.has('json')) {
+    const jsonFile = await chooseReport();
+    if (jsonFile) options.jsonFile = jsonFile;
+    else delete options.jsonFile;
+  }
 
   process.stdout.write(
     `\n${theme.muted(t('wizard.nextTime'))}\n  ${theme.accent(toCommandLine(options))}\n\n`,

@@ -1,9 +1,10 @@
+import { currentLocale } from '../i18n';
 import type { PidValue } from '../../types';
 
 export function formatNumber(value: number): string {
   if (!Number.isFinite(value)) return '—';
   const abs = Math.abs(value);
-  if (abs >= 1000) return Math.round(value).toLocaleString('en-US');
+  if (abs >= 1000) return Math.round(value).toLocaleString(currentLocale());
   if (Number.isInteger(value)) return String(value);
   return value.toFixed(abs >= 100 ? 0 : abs >= 10 ? 1 : 2);
 }

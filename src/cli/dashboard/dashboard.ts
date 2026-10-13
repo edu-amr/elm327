@@ -6,7 +6,7 @@ import { RingBuffer } from '../../stats/ring-buffer';
 import { SessionRecorder } from '../../stats/session';
 import { t } from '../i18n';
 import { cursor } from '../ui/ansi';
-import { PID_PRESETS, POLL_INTERVALS_MS } from '../options';
+import { LOG_DETAIL_LEVELS, PID_PRESETS, POLL_INTERVALS_MS } from '../options';
 import type { CliOptions } from '../options';
 import type { DashboardState, LogLine } from './state';
 import { renderDashboard } from './view';
@@ -280,7 +280,14 @@ export async function runDashboard(
     process.once('SIGTERM', () => void shutdown());
   }
 
-  if (options.logFile) client.enableLogger({ filePath: options.logFile, format: 'pretty' });
+  if (options.log) {
+    client.enableLogger({
+      filePath: options.log.file,
+      format: options.log.format,
+      levels: LOG_DETAIL_LEVELS[options.log.detail],
+      maxLines: options.log.maxLines,
+    });
+  }
   client.setAutoReconnect(options.autoReconnect);
   wire();
   draw();

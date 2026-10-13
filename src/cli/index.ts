@@ -35,10 +35,14 @@ async function main(): Promise<number> {
   }
 
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
-  if (!args.complete && !interactive) return (out(help()), 1);
+  const skipQuestions = args.yes || args.once || !interactive;
+  if (skipQuestions && !args.yes && !args.once && !args.explicit.has('connection')) {
+    return (out(help()), 1);
+  }
 
-  const options = args.complete || args.once ? args.options : await runWizard();
+  const options = skipQuestions ? args.options : await runWizard(args);
   const { sessionFile } = await runDashboard(options, { once: args.once });
+  if (options.log) out(`${theme.muted(t('cli.logSaved'))} ${options.log.file}`);
   if (sessionFile) out(`${theme.muted(t('cli.sessionSaved'))} ${sessionFile}`);
   return 0;
 }

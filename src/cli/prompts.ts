@@ -32,7 +32,6 @@ function collapse(drawn: number, summary: string): void {
   stdout.write(`\x1b[${drawn}A`);
   for (let i = 0; i < drawn; i++) stdout.write(`${cursor.clearLine}${i === 0 ? summary : ''}\n`);
   if (drawn > 1) stdout.write(`\x1b[${drawn - 1}A`);
-  stdout.write('\x1b[1B');
 }
 
 function readKeys(onKey: (key: Key, finish: () => void) => void): Promise<void> {
@@ -143,7 +142,10 @@ export async function text(
       });
       const value = reply.trim() || fallback;
       const problem = validate(value);
-      if (!problem) return value;
+      if (!problem) {
+        stdout.write(`\x1b[1A\r${cursor.clearLine}${answered(message, value)}\n`);
+        return value;
+      }
       stdout.write(`${theme.bad('✖')} ${problem}\n`);
     }
   } finally {
