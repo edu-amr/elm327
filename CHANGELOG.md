@@ -4,11 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.1.2] - 2026-10-13
 
 ### Added
 
 - Web dashboard: full-screen button in the side rail.
+- Web dashboard: the problems button in the side rail now opens and closes the console.
 - Project logo: favicon and header mark in the web dashboard, README header, and a braille-art banner when the setup or the web server starts.
 
 ## [2.1.1] - 2026-10-13
