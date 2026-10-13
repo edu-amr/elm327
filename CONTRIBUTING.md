@@ -1,96 +1,36 @@
-# Contributing to elm327
+# Contributing
 
-Thank you for your interest in contributing to elm327! This guide will help you get started.
+Thanks for helping! This is a small project; the goal is code that is easy to read and maintain.
 
-## Code of Conduct
-
-Please be respectful and considerate of others when participating in this project.
-
-## Getting Started
-
-1. Fork the repository on GitHub
-2. Clone your fork locally:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/elm327.git
-   cd elm327
-   ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-4. Create a branch for your changes:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-## Development
-
-### Building
+## Setup
 
 ```bash
-npm run build
+git clone https://github.com/YOUR_USERNAME/elm327.git && cd elm327
+npm install
+npm run demo   # dashboard against the simulator, no hardware needed
 ```
 
-### Running Tests
+Before opening a pull request:
 
 ```bash
-npm test
-npm run test:watch    # Watch mode
-npm run test:coverage # Coverage report
+npm run lint && npm run typecheck && npm test
 ```
 
-### Linting
+## Conventions
 
-```bash
-npm run lint
-npm run lint:fix      # Auto-fix issues
-```
+- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`). Hooks run ESLint, Prettier and commitlint.
+- **Tests:** every behavior change needs a test. Protocol code is pure; add real response samples to `src/protocol/*.test.ts`. End-to-end behavior is tested against the simulator in `src/client`.
+- **Style:** keep code self-explanatory, comment only the _why_. No `any`, no `console` outside `src/cli`.
+- **Event loop:** no busy loops or overlapping `setInterval` work, `unref` background timers, keep buffers bounded.
 
-## Making Changes
+## Common contributions
 
-1. **Follow the existing code style** — the project uses ESLint and Prettier
-2. **Write tests** for new features or bug fixes
-3. **Update documentation** if you change the public API
-4. **Keep commits focused** — one logical change per commit
-5. **Use descriptive commit messages** — explain what and why
+**A new PID.** Add an entry to `src/protocol/pids.ts` using the SAE J1979 formula, add a case to `pids.test.ts`, and, if the simulator should answer it, an encoder in `src/simulator/encoding.ts` (the round-trip test checks encoder and decoder agree).
 
-### Pull Request Process
+**A new language.** Copy `src/cli/i18n/locales/en.json` to `<code>.json`, translate the values keeping `{placeholders}`, register it in `src/cli/i18n/index.ts`, run `npm test`. `pid.<NAME>` and `dtc.<CODE>` keys are optional.
 
-1. Ensure your branch is up to date with the main branch
-2. Run the full test suite: `npm test`
-3. Run the linter: `npm run lint`
-4. Build the project: `npm run build`
-5. Push your branch and open a Pull Request
-6. Wait for review — maintainers will review and provide feedback
+**An adapter quirk.** Reproduce it as a response sample, fix it in `src/adapter` or `src/protocol`, and describe the adapter in the pull request.
 
-### Pull Request Guidelines
+## Reporting bugs
 
-- Describe the problem your PR solves
-- Include relevant test cases
-- Link any related issues
-- Update documentation if applicable
-- Keep the PR focused — avoid bundling unrelated changes
-
-## Reporting Issues
-
-When reporting a bug, please include:
-
-- Node.js version (`node -v`)
-- npm version (`npm -v`)
-- Operating system
-- OBD2 adapter model and firmware version
-- Steps to reproduce the issue
-- Expected vs actual behavior
-- Any relevant error messages or logs
-
-## Feature Requests
-
-Feature requests are welcome! Please describe:
-
-- The use case for the feature
-- How it would improve the library
-- Any implementation ideas you have
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
+Open an issue with the adapter model, connection type, vehicle (if relevant) and a log: `npx elm327 --log elm327.log` writes every command and response.

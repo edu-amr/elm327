@@ -12,3 +12,5 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+elm327-session-*.json
+elm327.log
