@@ -131,6 +131,11 @@ export async function text(
   validate: (value: string) => string | undefined = () => undefined,
 ): Promise<string> {
   const rl = createInterface({ input: stdin, output: stdout });
+  rl.on('SIGINT', () => {
+    rl.close();
+    stdout.write('\n');
+    process.exit(CANCEL_EXIT_CODE);
+  });
   try {
     for (;;) {
       const reply = await new Promise<string>((resolve) => {

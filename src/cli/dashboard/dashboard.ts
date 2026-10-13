@@ -6,7 +6,7 @@ import { RingBuffer } from '../../stats/ring-buffer';
 import { SessionRecorder } from '../../stats/session';
 import { t } from '../i18n';
 import { cursor } from '../ui/ansi';
-import { POLL_INTERVALS_MS } from '../options';
+import { PID_PRESETS, POLL_INTERVALS_MS } from '../options';
 import type { CliOptions } from '../options';
 import type { DashboardState, LogLine } from './state';
 import { renderDashboard } from './view';
@@ -17,6 +17,7 @@ const DTC_INTERVAL_MS = 30_000;
 const NOTICE_MS = 4000;
 const LOG_LINES = 300;
 const ONCE_SIZE = { cols: 120, rows: 40 };
+const ONCE_TIMEOUT_MS = 30_000;
 
 export interface DashboardResult {
   sessionFile: string | undefined;
@@ -55,6 +56,7 @@ export async function runDashboard(
   let previous: string[] = [];
   let noticeTimer: NodeJS.Timeout | undefined;
   let stopped = false;
+  let pausedByUser = false;
   let finish!: () => void;
   const finished = new Promise<void>((resolve) => (finish = resolve));
 
@@ -99,7 +101,7 @@ export async function runDashboard(
     client.on('disconnected', () => (state.status = 'offline'));
     client.on('reconnecting', () => (state.status = 'reconnecting'));
     client.on('reconnected', () => {
-      state.status = 'live';
+      state.status = pausedByUser ? 'paused' : 'live';
       notify(t('notice.reconnected'));
     });
     client.on('error', (error) => {
@@ -125,8 +127,12 @@ export async function runDashboard(
         return wanted;
       }
     }
-    const supported = new Set(await client.getSupportedPids());
-    return PIDS.filter((pid) => supported.has(pid.pid)).map((pid) => pid.name);
+    try {
+      const supported = new Set(await client.getSupportedPids());
+      return PIDS.filter((pid) => supported.has(pid.pid)).map((pid) => pid.name);
+    } catch {
+      return PID_PRESETS['essentials']!.pids;
+    }
   };
 
   const timers: NodeJS.Timeout[] = [];
@@ -143,8 +149,12 @@ export async function runDashboard(
       stdin.pause();
       stdout.write(cursor.show + cursor.altScreenOff);
     }
-    await client.disconnect();
-    finish();
+    try {
+      await client.disconnect();
+      await client.disableLogger();
+    } finally {
+      finish();
+    }
   };
 
   const changeInterval = (direction: 1 | -1): void => {
@@ -165,9 +175,11 @@ export async function runDashboard(
 
   const togglePause = (): void => {
     if (state.status === 'paused') {
+      pausedByUser = false;
       client.startPolling(state.intervalMs);
       state.status = 'live';
     } else if (state.status === 'live') {
+      pausedByUser = true;
       client.stopPolling();
       state.status = 'paused';
     }
@@ -275,46 +287,43 @@ export async function runDashboard(
 
   try {
     await client.connect();
+    state.adapter = client.getAdapterInfo();
+    state.status = 'live';
+    state.signals = await selectSignals();
+    state.focus = state.signals.find((name) => name === 'ENGINE_RPM') ?? state.signals[0];
+    state.voltage = await client.getBatteryVoltage().catch(() => undefined);
+    if (options.readDtcs) await readDtcs();
+
+    for (const name of state.signals) client.addPoller(name);
+    client.setPollInterval(state.intervalMs);
+    client.startPolling();
+
+    timers.push(
+      setInterval(() => {
+        client.getBatteryVoltage().then(
+          (volts) => (state.voltage = volts),
+          () => undefined,
+        );
+      }, VOLTAGE_INTERVAL_MS),
+    );
+    if (options.readDtcs) timers.push(setInterval(() => void readDtcs(), DTC_INTERVAL_MS));
+    for (const timer of timers) timer.unref();
   } catch (error) {
-    stopped = true;
-    if (interactive) {
-      stdin.setRawMode(false);
-      stdin.pause();
-      stdout.write(cursor.show + cursor.altScreenOff);
-    }
-    for (const timer of timers) clearInterval(timer);
-    stdin.off('keypress', onKey);
-    stdout.off('resize', onResize);
-    await client.disconnect();
+    const quitWhileConnecting = stopped;
+    await shutdown();
+    if (quitWhileConnecting) return { sessionFile: undefined };
     throw error;
   }
-
-  state.adapter = client.getAdapterInfo();
-  state.status = 'live';
-  state.signals = await selectSignals();
-  state.focus = state.signals.find((name) => name === 'ENGINE_RPM') ?? state.signals[0];
-  state.voltage = await client.getBatteryVoltage().catch(() => undefined);
-  if (options.readDtcs) await readDtcs();
-
-  for (const name of state.signals) client.addPoller(name);
-  client.setPollInterval(state.intervalMs);
-  client.startPolling();
-
-  timers.push(
-    setInterval(() => {
-      client.getBatteryVoltage().then(
-        (volts) => (state.voltage = volts),
-        () => undefined,
-      );
-    }, VOLTAGE_INTERVAL_MS),
-  );
-  if (options.readDtcs) timers.push(setInterval(() => void readDtcs(), DTC_INTERVAL_MS));
-  for (const timer of timers) timer.unref();
 
   if (settings.once) {
     await new Promise<void>((resolve) => {
       let rounds = 0;
-      client.on('pollComplete', () => ++rounds >= 3 && resolve());
+      const giveUp = setTimeout(resolve, ONCE_TIMEOUT_MS);
+      client.on('disconnected', resolve);
+      client.on('pollComplete', () => {
+        if (++rounds >= 3) resolve();
+      });
+      giveUp.unref();
     });
     draw();
     stdout.write(`${previous.join('\n')}\n`);
